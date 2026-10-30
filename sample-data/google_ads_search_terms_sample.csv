@@ -1,0 +1,9 @@
+Search terms report
+"October 19, 2026 - October 25, 2026"
+Search term,Match type,Added/Excluded,Campaign,Ad group,Keyword,Clicks,Impr.,Cost,Conversions,Conv. value
+kids science lab kit,Phrase match,None,Search | Science,Science kits,"""science kit""",35,1900,"1,050.00",3.00,"1,197.00"
+science kit pdf,Phrase match,None,Search | Science,Science kits,"""science kit""",12,600,180.00,0.00,0.00
+science kit for 10 year old,Exact match (close variant),None,Search | Science,Science kits,[science kit for kids],20,700,640.00,2.00,798.00
+sunny shelf science,Exact match,None,Search | Brand,Brand,[sunny shelf],9,90,27.00,2.00,798.00
+healthy snack ideas kids,Broad match,None,Search | Snack,Snack recipes,healthy snacks,28,2600,560.00,0.00,0.00
+Total: Search terms,,,,,,104,5890,"2,457.00",7.00,"2,793.00"

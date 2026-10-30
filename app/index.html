@@ -1,0 +1,1732 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seller Growth Engine</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f6f5f1; --card:#ffffff; --ink:#1d2421; --muted:#5f6b66; --line:#e2e0d8;
+  --accent:#1f7a5c; --accent-ink:#ffffff; --input:#fff8db; --input-line:#e8d27a;
+  --harvest:#1f7a5c; --negate:#b42318; --junk:#8a5a00; --down:#b54708; --up:#175cd3; --starved:#6941c6;
+  --pass:#1f7a5c; --iterate:#b54708; --fail:#b42318; --chip:#efede6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --grid:#ebe9e2; --spark:#eda100;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121614; --card:#1b201e; --ink:#e7ece9; --muted:#9aa8a2; --line:#2c3431;
+    --accent:#4cc495; --accent-ink:#0b1410; --input:#2b2716; --input-line:#5c5226;
+    --harvest:#4cc495; --negate:#f97066; --junk:#e0b14a; --down:#f79009; --up:#84adff; --starved:#b692f6;
+    --pass:#4cc495; --iterate:#f79009; --fail:#f97066; --chip:#252b28;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --grid:#2a312e;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121614; --card:#1b201e; --ink:#e7ece9; --muted:#9aa8a2; --line:#2c3431;
+  --accent:#4cc495; --accent-ink:#0b1410; --input:#2b2716; --input-line:#5c5226;
+  --harvest:#4cc495; --negate:#f97066; --junk:#e0b14a; --down:#f79009; --up:#84adff; --starved:#b692f6;
+  --pass:#4cc495; --iterate:#f79009; --fail:#f97066; --chip:#252b28;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --grid:#2a312e;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:24px;margin:0;letter-spacing:-.01em}
+.brand{display:flex;align-items:center;gap:12px;margin:0 0 18px}
+.brand .logo{width:40px;height:40px;flex:none}
+.brand .tagline{font-size:13px;color:var(--muted)}
+.brand .manual{margin-left:auto;font-size:14px;font-weight:600;color:var(--accent);text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:6px 12px}
+h2{font-size:18px;margin:0 0 4px}
+h3{font-size:15px;margin:20px 0 6px}
+.sub{color:var(--muted);margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin:0 0 16px}
+.step{display:inline-block;background:var(--accent);color:var(--accent-ink);border-radius:999px;width:24px;height:24px;text-align:center;line-height:24px;font-weight:700;font-size:13px;margin-right:8px}
+.hint{color:var(--muted);font-size:13px;margin:0 0 14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+label.f{display:block;font-size:13px;font-weight:600}
+label.f small{display:block;font-weight:400;color:var(--muted)}
+label.f input{width:100%;margin-top:4px;padding:8px;border:1px solid var(--input-line);background:var(--input);color:var(--ink);border-radius:8px;font:inherit}
+.tag{font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px;background:var(--chip)}
+.tag.ph{color:var(--down)}
+.tag.ok{color:var(--pass)}
+.warn{color:var(--negate);font-weight:600}
+.okc{color:var(--pass);font-weight:600}
+button{font:inherit;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700;padding:12px 22px;font-size:16px}
+button.strong{border-color:var(--accent);color:var(--accent);font-weight:600}
+button:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row input[type=date]{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
+.drop{border:2px dashed var(--line);border-radius:10px;padding:16px;text-align:center;color:var(--muted);margin-bottom:12px}
+.drop.over{border-color:var(--accent);color:var(--ink)}
+.drop label{color:var(--accent);cursor:pointer;text-decoration:underline}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;margin-top:12px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--chip);font-weight:600;white-space:nowrap}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+#grid td[contenteditable]{background:var(--input);min-width:60px}
+#grid td[contenteditable]:focus{outline:2px solid var(--accent)}
+.intable input{width:100%;min-width:70px;padding:6px;border:1px solid var(--input-line);background:var(--input);color:var(--ink);border-radius:6px;font:inherit}
+.intable input.wide{min-width:170px}
+.intable input.ph,.ph-text{color:var(--down);font-style:italic}
+.intable td.calc{background:var(--chip);white-space:nowrap}
+.rule{font-weight:700;white-space:nowrap}
+.R1{color:var(--harvest)}.R2{color:var(--negate)}.R3{color:var(--junk)}.R4{color:var(--down)}.R5{color:var(--up)}.R6{color:var(--starved)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chips button{padding:4px 10px;font-size:13px;border-radius:999px}
+.chips button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.tile{background:var(--chip);border-radius:10px;padding:10px 12px}
+.tile span{font-size:12px;color:var(--muted)}
+.tile b{display:block;font-size:20px}
+.verdict{border-radius:10px;padding:12px 14px;font-weight:600;margin-top:12px;border:2px solid}
+.verdict.PASS{border-color:var(--pass);color:var(--pass)}
+.verdict.ITERATE{border-color:var(--iterate);color:var(--iterate)}
+.verdict.FAIL{border-color:var(--fail);color:var(--fail)}
+.verdict.EARLY{border-color:var(--line);color:var(--muted)}
+.decision{border:2px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.decision .call{font-size:20px;font-weight:800}
+.decision.Raise{border-color:var(--pass)} .decision.Raise .call{color:var(--pass)}
+.decision.Cut{border-color:var(--fail)} .decision.Cut .call{color:var(--fail)}
+.decision.Test,.decision.Hold{border-color:var(--iterate)} .decision.Test .call,.decision.Hold .call{color:var(--iterate)}
+.prio{margin:10px 0 0;padding-left:20px}
+.prio li{margin:6px 0}
+.prio .area{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-right:6px}
+.prio .impact{font-weight:600}
+.checklist{font-size:13px;color:var(--muted);margin:0 0 18px;padding-left:20px}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.hidden{display:none}
+.x{border:none;background:none;color:var(--muted);padding:0 4px;cursor:pointer}
+.findings{margin:6px 0 0;padding-left:20px}
+.findings li{margin:4px 0}
+.ai{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 14px}
+.ai summary{cursor:pointer;font-weight:600}
+.ai input[type=password],.ai select{padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;min-width:220px}
+.aiout{white-space:pre-wrap;margin-top:10px;line-height:1.55}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.chartbox{position:relative;margin-top:6px}
+.chartbox svg{width:100%;height:auto;display:block}
+.chartbox text{fill:var(--muted);font-size:11px}
+.chartbox text.lbl{fill:var(--ink);font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
+.tip{position:absolute;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.12);white-space:nowrap}
+.sw{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.sq{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.type{font-weight:600;white-space:nowrap}
+@media (max-width:600px){h1{font-size:22px}button.primary{width:100%}}
+</style>
+</head>
+<body>
+<main>
+  <header class="brand">
+    <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="18" fill="var(--accent)"/><path d="M10 27l7-7 5 4 8-10" fill="none" stroke="var(--accent-ink)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="30" cy="14" r="3" fill="var(--spark)"/></svg>
+    <div><h1>Seller Growth Engine</h1><div class="tagline">AI growth engine for small marketplace sellers</div></div>
+    <a class="manual" href="../docs/USER_GUIDE.md" target="_blank" rel="noopener">Manual ↗</a>
+  </header>
+
+  <!-- 1. Product setup -->
+  <section class="card">
+    <h2><span class="step">1</span>Product setup <span class="note">once</span></h2>
+    <p class="hint">Yellow = company data · <span class="ph-text">orange italics</span> = placeholder</p>
+    <div class="tablewrap intable"><table id="products"></table></div>
+    <div class="row" style="margin-top:10px"><button id="addProduct">+ Add product</button><button id="resetInputs">Reset to placeholders</button><span class="note" id="filled"></span></div>
+    <h3>Rule settings (same for all products)</h3>
+    <div class="grid" id="inputs"></div>
+  </section>
+
+  <!-- 2. This week's data -->
+  <section class="card">
+    <h2><span class="step">2</span>This week's data</h2>
+    <h3 style="margin-top:6px">a. Search term report · last 7 days</h3>
+    <div class="drop" id="drop">Drop it here, or <label>choose a file<input type="file" id="file" accept=".csv,.xlsx,.xls" hidden></label></div>
+    <div class="row">
+      <button id="loadSample">Load sample data</button>
+      <button id="addRow">+ Add row</button>
+      <button id="clearRows">Clear table</button>
+      <span class="note" id="srcNote"></span>
+    </div>
+    <details style="margin-top:8px"><summary class="note" style="cursor:pointer">Show / edit rows</summary>
+      <div class="tablewrap"><table id="grid"></table></div>
+    </details>
+
+    <h3>b. Business Report · same dates</h3>
+    <div class="drop" id="drop2">Drop it here, or <label>choose a file<input type="file" id="file2" accept=".csv,.xlsx,.xls" hidden></label>, or type below</div>
+    <div class="tablewrap intable"><table id="sales"></table></div>
+    <p class="note" id="salesNote"></p>
+  </section>
+
+  <!-- 3. Run -->
+  <section class="card">
+    <h2><span class="step">3</span>Run</h2>
+    <div class="row">
+      <label class="note" style="margin:0">Week of <input type="date" id="weekOf"></label>
+      <button class="primary" id="run">Run Monday check</button>
+      <span class="note" id="runNote"></span>
+    </div>
+  </section>
+
+  <!-- 4. Results -->
+  <section class="card hidden" id="results">
+    <h2><span class="step">4</span>This week's decision and actions</h2>
+    <div id="decision"></div>
+    <details class="ai" id="aiBox"><summary>AI brief <span class="note">optional · Claude writes this week's summary in plain language</span></summary>
+      <div class="row" style="margin-top:10px">
+        <input type="password" id="aiKey" placeholder="Anthropic API key" autocomplete="off">
+        <select id="aiModel">
+          <option value="claude-opus-5-5">Claude Opus 5.5 (best)</option>
+          <option value="claude-sonnet-5-5">Claude Sonnet 5.5</option>
+          <option value="claude-haiku-5-5">Claude Haiku 5.5 (cheapest)</option>
+        </select>
+        <label class="note" style="margin:0"><input type="checkbox" id="aiRemember"> remember key on this computer</label>
+      </div>
+      <div class="row" style="margin-top:8px"><button class="strong" id="aiRun">Write AI brief</button><button id="aiCopy">Copy prompt instead</button><span class="note" id="aiNote"></span></div>
+      <div class="aiout" id="aiOut"></div>
+    </details>
+    <div class="tiles" id="tiles"></div>
+    <div class="tablewrap"><table id="byProduct"></table></div>
+    <div class="row" style="margin-top:12px">
+      <button class="strong xlsBtn">Download Excel report</button>
+      <button id="dlActions">Download actions.csv</button>
+      <button id="saveWeek" class="hidden">Save this sample week to history</button>
+      <span class="note" id="saveNote"></span>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="tablewrap"><table id="actions"></table></div>
+  </section>
+
+  <!-- 5. History -->
+  <section class="card">
+    <h2><span class="step">5</span>History · 8-week scorecard</h2>
+    <div id="verdict"></div>
+    <div class="tablewrap"><table id="history"></table></div>
+    <div class="row" style="margin-top:10px">
+      <button id="loadDemo">Load 6-week demo history</button>
+      <button id="exportAll">Back up all data (.json)</button>
+      <label><button type="button" onclick="this.nextElementSibling.click()">Restore backup</button><input type="file" id="importAll" accept=".json" hidden></label>
+      <button id="clearSample">Delete sample weeks</button>
+      <button id="clearHist">Delete all history</button>
+      <span class="note" id="dbNote"></span>
+    </div>
+  </section>
+
+  <!-- 6. Insights -->
+  <section class="card">
+    <h2><span class="step">6</span>Trends · insights</h2>
+    <div id="insights"></div>
+    <div class="row" style="margin-top:12px"><button class="strong xlsBtn">Download Excel report</button></div>
+  </section>
+</main>
+
+<script id="engine">
+// ---------- Rule engine: same rules and thresholds as engine/rulebook.py (R1–R6) ----------
+// Column names accepted from an Amazon Sponsored Products search term report or a Google Ads search terms report
+const COLS = {
+  campaign: ["Campaign Name", "Campaign"], ad_group: ["Ad Group Name", "Ad group"], targeting: ["Targeting", "Keyword"],
+  match: ["Match Type"], term: ["Customer Search Term", "Search Term"], impr: ["Impressions", "Impr."], clicks: ["Clicks"],
+  spend: ["Spend", "Spend(INR)", "Spend (INR)", "Spend (₹)", "Cost"],
+  sales: ["7 Day Total Sales", "7 Day Total Sales (₹)", "7 Day Total Sales (INR)", "14 Day Total Sales", "14 Day Total Sales (₹)", "Conv. value", "Total conv. value", "Sales"],
+  orders: ["7 Day Total Orders (#)", "7 Day Total Orders", "14 Day Total Orders (#)", "Conversions", "Orders"],
+};
+const OPT_COLS = { start: ["Start Date", "Date"], end: ["End Date", "Date"] };
+const BR_COLS = { units: ["Units Ordered", "Total Order Items"], sales: ["Ordered Product Sales"] };
+const BR_OPT = { asin: ["(Child) ASIN", "Child ASIN", "ASIN", "(Parent) ASIN"], title: ["Title", "Product Name"] };
+// default words that mark a non-buyer search; editable per store in the settings
+const DEFAULT_BLOCK_WORDS = "free, pdf, download, used, second hand, torrent, jobs";
+const wordList = s => String(s ?? "").split(",").map(w => w.trim().toLowerCase()).filter(Boolean);
+const reEsc = w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const DAY = 864e5;
+
+function num(x) {
+  if (x === null || x === undefined || x === "") return 0;
+  if (typeof x === "number") return x;
+  return parseFloat(String(x).replace(/[₹$€£,%]/g, "").trim()) || 0;
+}
+const r2 = x => Math.round(x * 100) / 100;
+const pct = x => Math.round(x * 100) + "%";
+const isAsin = t => t.length === 10 && t.startsWith("b0");
+const clone = x => JSON.parse(JSON.stringify(x));
+const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
+const sd = a => { const m = mean(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / Math.max(a.length - 1, 1)); };
+const isoDate = d => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+function findCol(H, names) { for (const n of names) { const i = H.indexOf(n.toLowerCase()); if (i >= 0) return i; } return -1; }
+// header row + data rows (arrays) -> row objects keyed by our names; throws naming a missing required column
+function mapColumns(header, rows, cols = COLS, opt = OPT_COLS) {
+  const H = header.map(h => String(h ?? "").trim().toLowerCase());
+  const idx = {};
+  for (const [k, names] of Object.entries(cols)) {
+    const i = findCol(H, names);
+    if (i < 0) throw new Error(`Missing column for '${k}'. Expected one of: ${names.join(", ")}`);
+    idx[k] = i;
+  }
+  for (const [k, names] of Object.entries(opt)) { const i = findCol(H, names); if (i >= 0) idx[k] = i; }
+  const isTotal = v => /^total\b/i.test(String(v ?? "").trim());
+  return rows.filter(r => r.some(c => c !== "" && c != null))
+    .map(r => { const o = {}; for (const k in idx) o[k] = r[idx[k]] ?? ""; return o; })
+    .filter(o => !isTotal(o.campaign) && !isTotal(o.term));   // Google exports end with "Total: ..." rows
+}
+// exports may start with title or date-range lines: use the first row (of the first 10) that has the needed columns
+function mapTable(table, cols = COLS, opt = OPT_COLS) {
+  let err;
+  for (let i = 0; i < Math.min(10, table.length); i++) {
+    try { return mapColumns(table[i], table.slice(i + 1), cols, opt); } catch (e) { err = err || e; }
+  }
+  throw err || new Error("The file is empty.");
+}
+
+// dates come as Date (xlsx), Excel serial numbers, "Oct 12, 2026", "2026-10-12" or Indian dd/mm/yyyy
+function parseDate(v) {
+  if (v instanceof Date) return isNaN(v) ? null : v;
+  if (typeof v === "number" && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * DAY));
+  const s = String(v ?? "").trim(); if (!s) return null;
+  const m = s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+  const t = Date.parse(s); return isNaN(t) ? null : new Date(t);
+}
+function reportPeriod(rows) {
+  const s = rows.map(r => parseDate(r.start)).filter(Boolean), e = rows.map(r => parseDate(r.end)).filter(Boolean);
+  if (!s.length || !e.length) return null;
+  const start = new Date(Math.min(...s)), end = new Date(Math.max(...e));
+  return { start: isoDate(start), end: isoDate(end), days: Math.round((end - start) / DAY) + 1 };
+}
+
+// Business Report (Detail Page Sales and Traffic by Child Item) -> units and sales per product
+function parseBusinessReport(header, rows, products) {
+  const recs = mapTable([header, ...rows], BR_COLS, BR_OPT);
+  const per = products.map(() => ({ units: 0, sales: 0, rows: 0 })), unmatched = [];
+  for (const r of recs) {
+    const asin = String(r.asin ?? "").trim().toLowerCase(), title = String(r.title ?? "").toLowerCase();
+    let i = products.findIndex(b => b.asin && asin && String(b.asin).trim().toLowerCase() === asin);
+    if (i < 0) i = products.findIndex(b => b.match && title.includes(String(b.match).toLowerCase()));
+    if (i < 0) { unmatched.push(r.title || r.asin || "?"); continue; }
+    per[i].units += num(r.units); per[i].sales += num(r.sales); per[i].rows++;
+  }
+  return { per, unmatched };
+}
+
+// s.priceOf(campaign) gives each product's price (else s.price); s.brandTerms are never blocked; s.junkWords get a negative phrase
+function runRules(rows, s) {
+  const { targetAcos, maxBid, currentBid, minClicksNegate } = s;
+  const brandTerms = s.brandTerms || [], junkWords = s.junkWords || wordList(DEFAULT_BLOCK_WORDS);
+  const priceOf = s.priceOf || (() => s.price);
+  const zero = () => ({ impr: 0, clicks: 0, spend: 0, sales: 0, orders: 0 });
+  const agg = new Map(), byTarget = new Map(), exactTerms = new Set(), actions = [];
+
+  for (const r of rows) {
+    const term = String(r.term).trim().toLowerCase();
+    const key = JSON.stringify([r.campaign, r.ad_group, r.targeting, r.match, term]);
+    const a = agg.get(key) || Object.assign(zero(), { camp: r.campaign, ag: r.ad_group, targeting: r.targeting, match: r.match, term });
+    a.impr += Math.trunc(num(r.impr)); a.clicks += Math.trunc(num(r.clicks)); a.orders += Math.trunc(num(r.orders));
+    a.spend += num(r.spend); a.sales += num(r.sales);
+    agg.set(key, a);
+  }
+  for (const a of agg.values()) {
+    if (String(a.match).toUpperCase() === "EXACT") exactTerms.add(a.term);
+    const k = JSON.stringify([a.camp, a.ag, a.targeting]);
+    const t = byTarget.get(k) || Object.assign(zero(), { camp: a.camp, ag: a.ag, targeting: a.targeting, match: "" });
+    for (const f of ["impr", "clicks", "spend", "sales", "orders"]) t[f] += a[f];
+    t.match = a.match;
+    byTarget.set(k, t);
+  }
+
+  for (const a of [...agg.values()].sort((x, y) => y.spend - x.spend)) {
+    const acos = a.sales ? a.spend / a.sales : null;
+    const base = { campaign: a.camp, ad_group: a.ag, targeting: a.targeting, search_term: a.term,
+      clicks: a.clicks, spend: r2(a.spend), orders: a.orders, acos: acos === null ? "—" : pct(acos) };
+    const isBrand = brandTerms.some(b => a.term.includes(b));
+    const match = String(a.match).toUpperCase();
+    const price = priceOf(a.camp), targetCpa = price * targetAcos;
+
+    const root = junkWords.find(j => new RegExp(`\\b${reEsc(j)}\\b`).test(a.term));
+    if (root && !isBrand) {
+      actions.push({ ...base, rule: "R3 JUNK", action: "Add NEGATIVE PHRASE", value: root,
+        why: `contains '${root}', not a buyer of a ₹${Math.round(price)} product` });
+      continue;
+    }
+    if (match !== "EXACT" && a.orders >= 2 && acos !== null && acos <= targetAcos && !exactTerms.has(a.term)) {
+      const kind = isAsin(a.term) ? "ASIN target" : "EXACT keyword";
+      const bid = Math.min(maxBid, r2(a.spend / Math.max(a.clicks, 1) * 1.1));
+      actions.push({ ...base, rule: "R1 HARVEST", action: `Add as ${kind} in 'SP | Exact winners'`,
+        value: `bid ₹${bid}`, why: `${a.orders} orders at ${pct(acos)} ACOS ≤ target ${pct(targetAcos)}` });
+      actions.push({ ...base, rule: "R1 HARVEST", action: "Add NEGATIVE EXACT in source ad group",
+        value: a.term, why: "stop the source campaign competing with the exact campaign" });
+      continue;
+    }
+    if (a.orders === 0 && !isBrand && (a.clicks >= minClicksNegate || a.spend >= 1.5 * targetCpa)) {
+      const kind = isAsin(a.term) ? "NEGATIVE ASIN" : "NEGATIVE EXACT";
+      actions.push({ ...base, rule: "R2 NEGATE", action: `Add ${kind}`, value: a.term,
+        why: `${a.clicks} clicks / ₹${Math.round(a.spend)} spent, 0 orders (limit ${minClicksNegate} clicks or ₹${Math.round(1.5 * targetCpa)})` });
+    }
+  }
+
+  for (const t of byTarget.values()) {
+    const match = String(t.match).toUpperCase();
+    if (t.targeting === "*" || t.targeting === "" || match === "-" || match === "") continue;
+    const acos = t.sales ? t.spend / t.sales : null;
+    const cpc = t.clicks ? t.spend / t.clicks : currentBid;
+    const base = { campaign: t.camp, ad_group: t.ag, targeting: t.targeting, search_term: "(all)",
+      clicks: t.clicks, spend: r2(t.spend), orders: t.orders, acos: acos === null ? "—" : pct(acos) };
+    if (t.orders >= 2 && acos !== null && acos > targetAcos * 1.3) {
+      const nb = Math.max(1, r2(cpc * Math.max(0.7, targetAcos / acos)));
+      actions.push({ ...base, rule: "R4 BID DOWN", action: "Set bid", value: `₹${nb}`,
+        why: `ACOS ${pct(acos)} > ${pct(targetAcos * 1.3)}; max cut 30% per week` });
+    } else if (t.orders >= 2 && acos !== null && acos < targetAcos * 0.7) {
+      const nb = Math.min(maxBid, r2(cpc * 1.15));
+      actions.push({ ...base, rule: "R5 BID UP", action: "Set bid", value: `₹${nb}`,
+        why: `ACOS ${pct(acos)} < ${pct(targetAcos * 0.7)}; buy more of a winner (+15%)` });
+    } else if (match === "EXACT" && t.impr < 100) {
+      const nb = Math.min(maxBid, r2(Math.max(cpc, currentBid) * 1.2));
+      actions.push({ ...base, rule: "R6 STARVED", action: "Set bid", value: `₹${nb}`,
+        why: `only ${t.impr} impressions this period; bid too low to enter auction (+20%)` });
+    }
+  }
+  return actions;
+}
+
+function totals(rows) {
+  const t = { spend: 0, sales: 0, orders: 0, clicks: 0, impr: 0 };
+  for (const r of rows) { t.spend += num(r.spend); t.sales += num(r.sales); t.orders += num(r.orders); t.clicks += num(r.clicks); t.impr += num(r.impr); }
+  return t;
+}
+
+// verdict for the 8-week test
+function verdict(weekNo, units, baseline, tacos) {
+  if (!baseline) return { code: "EARLY", text: "Enter baseline weekly units in step 1 to score the test." };
+  const lift = units / baseline - 1;
+  const l = (lift >= 0 ? "+" : "") + Math.round(lift * 100) + "%";
+  const tc = tacos === null ? "TACoS unknown" : "TACoS " + pct(tacos);
+  if (weekNo < 8) return { code: "EARLY", text: `Week ${weekNo} of 8: units ${l} vs baseline, ${tc}. The pass/fail call is made at week 8 (target +50%, TACoS ≤ 25%).` };
+  if (lift >= 0.5 && tacos !== null && tacos <= 0.25) return { code: "PASS", text: `Week ${weekNo}: PASS. Units ${l} vs baseline with ${tc}. Scale budget.` };
+  if (lift >= 0.2) return { code: "ITERATE", text: `Week ${weekNo}: ITERATE. Units ${l}, ${tc}: some lift but short of +50% at TACoS ≤ 25%. Fix the listing and keywords, run 4 more weeks.` };
+  return { code: "FAIL", text: `Week ${weekNo}: FAIL. Units ${l} vs baseline: ads aren't lifting sales. Pause and fix the product page, price and reviews first.` };
+}
+
+// ---------- One weekly run = everything needed to look back at that week ----------
+function productIndexIn(products, campaign) {
+  const c = String(campaign).toLowerCase();
+  return products.findIndex(b => b.match && c.includes(String(b.match).toLowerCase()));
+}
+// "Exact match (close variant)" (Google) and "EXACT" (Amazon) -> "EXACT"
+const normMatch = m => String(m ?? "").toUpperCase().replace(/\(.*?\)/g, "").replace(/\bMATCH\b/, "").trim();
+function normRow(r) {
+  return { campaign: String(r.campaign ?? ""), ad_group: String(r.ad_group ?? ""), targeting: String(r.targeting ?? ""),
+    match: normMatch(r.match), term: String(r.term ?? ""), impr: num(r.impr), clicks: num(r.clicks),
+    spend: num(r.spend), sales: num(r.sales), orders: num(r.orders) };
+}
+const profitOf = b => (+b.price || 0) - (+b.cogs || 0) - (+b.referral || 0) - (+b.fba || 0);
+
+// ruleRows: last week's rows when reports are 7-day, so the rules judge 14 days of data while trends stay week by week
+function buildRun({ rows, products, settings, week, source, sample, period, ruleRows }) {
+  rows = rows.map(normRow);
+  const priceOf = c => { const i = productIndexIn(products, c); return products[i < 0 ? 0 : i].price; };
+  const actions = runRules(ruleRows ? rows.concat(ruleRows) : rows, { targetAcos: settings.targetAcos / 100, maxBid: settings.maxBid,
+    currentBid: settings.currentBid, minClicksNegate: Math.round(settings.minClicks), priceOf,
+    brandTerms: wordList(settings.brandWords), junkWords: wordList(settings.blockWords ?? DEFAULT_BLOCK_WORDS) });
+  const days = settings.periodDays || 14, wkf = 7 / days;
+  const t = totals(rows);
+  const groups = products.map(() => []), unmatched = [];
+  rows.forEach(r => { const i = productIndexIn(products, r.campaign); (i < 0 ? unmatched : groups[i]).push(r); });
+  const byProduct = products.map((b, i) => {
+    const g = totals(groups[i]), units = (+b.periodUnits || 0) * wkf, profit = profitOf(b);
+    return { name: b.name, rows: groups[i].length, spend: g.spend, sales: g.sales, orders: g.orders, clicks: g.clicks,
+      weeklyUnits: units, baseline: +b.baseline || 0, periodSales: +b.periodSales || 0, profit, price: +b.price || 0,
+      spendWk: g.spend * wkf, adOrdersWk: g.orders * wkf, organicWk: Math.max(0, units - g.orders * wkf),
+      profitAfterAdsWk: units * profit - g.spend * wkf };
+  });
+  const units = byProduct.reduce((s, b) => s + b.weeklyUnits, 0);
+  const allSales = byProduct.reduce((s, b) => s + b.periodSales, 0);
+  const w = byProduct.map(b => b.weeklyUnits || b.baseline || 1), wsum = w.reduce((s, x) => s + x, 0);
+  const breakEven = byProduct.reduce((s, b, i) => s + (b.price ? b.profit / b.price : 0) * w[i], 0) / wsum;
+  const profitBefore = byProduct.reduce((s, b) => s + b.weeklyUnits * b.profit, 0);
+  return { week, source, sample: !!sample, savedAt: null, period: period || null, settings: { ...settings }, products: clone(products), rows, actions, byProduct,
+    unmatched: { rows: unmatched.length, ...totals(unmatched) },
+    summary: { spend: t.spend, sales: t.sales, orders: t.orders, clicks: t.clicks, impr: t.impr, days, ruleDays: ruleRows ? days * 2 : days,
+      acos: t.sales ? t.spend / t.sales : null, tacos: allSales ? t.spend / allSales : null,
+      weeklyUnits: units, baseline: byProduct.reduce((s, b) => s + b.baseline, 0), breakEven,
+      spendWk: t.spend * wkf, adOrdersWk: t.orders * wkf, organicWk: Math.max(0, units - t.orders * wkf),
+      profitBeforeAdsWk: profitBefore, profitAfterAdsWk: profitBefore - t.spend * wkf } };
+}
+
+// ---------- Statistics / machine-learning helpers ----------
+// two-sided Student t critical values by degrees of freedom (1–10; normal-ish beyond)
+const T80 = [Infinity, 3.078, 1.886, 1.638, 1.533, 1.476, 1.44, 1.415, 1.397, 1.383, 1.372];
+const T95 = [Infinity, 12.71, 4.303, 3.182, 2.776, 2.571, 2.447, 2.365, 2.306, 2.262, 2.228];
+const t80 = df => df < 1 ? Infinity : df <= 10 ? T80[df] : 1.3;
+const t95 = df => df < 1 ? Infinity : df <= 10 ? T95[df] : 2.0;
+
+// least squares y = a + b·x with R², slope standard error and prediction error for a new week.
+// inflate > 1 widens the error when weekly points share days (overlapping report windows).
+function linreg(xs, ys, inflate = 1) {
+  const n = xs.length; if (n < 2) return null;
+  const mx = mean(xs), my = mean(ys);
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) { const dx = xs[i] - mx, dy = ys[i] - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
+  if (!sxx) return null;
+  const slope = sxy / sxx, intercept = my - slope * mx, predict = x => intercept + slope * x;
+  const sse = ys.reduce((s, y, i) => s + (y - predict(xs[i])) ** 2, 0);
+  const s = n > 2 ? Math.sqrt(sse / (n - 2)) * inflate : null;
+  const pe = x0 => s === null ? null : s * Math.sqrt(1 + 1 / n + (x0 - mx) ** 2 / sxx);
+  return { slope, intercept, r2: syy ? sxy * sxy / (sxx * syy) : 0, n, s, predict, pe,
+    slopeSE: s === null ? null : s / Math.sqrt(sxx),
+    range: (x0, df = n - 2) => s === null ? null : t80(df) * pe(x0) };
+}
+
+// mean silhouette (−1…1): how much closer each point is to its own group than to the next one
+function silhouette(X, assign) {
+  const d = (a, b) => Math.sqrt(a.reduce((s, v, j) => s + (v - b[j]) ** 2, 0));
+  const ks = [...new Set(assign)];
+  if (ks.length < 2) return -1;
+  return mean(X.map((p, i) => {
+    const own = X.filter((_, j) => j !== i && assign[j] === assign[i]);
+    if (!own.length) return 0;
+    const a = mean(own.map(q => d(p, q)));
+    const b = Math.min(...ks.filter(k => k !== assign[i]).map(k => mean(X.filter((_, j) => assign[j] === k).map(q => d(p, q)))));
+    return (b - a) / Math.max(a, b);
+  }));
+}
+function invert(M) {
+  const n = M.length, A = M.map((r, i) => [...r, ...M.map((_, j) => +(i === j))]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    if (Math.abs(A[p][c]) < 1e-10) return null;
+    [A[c], A[p]] = [A[p], A[c]];
+    const d = A[c][c]; A[c] = A[c].map(v => v / d);
+    for (let r = 0; r < n; r++) if (r !== c) { const f = A[r][c]; A[r] = A[r].map((v, j) => v - f * A[c][j]); }
+  }
+  return A.map(r => r.slice(n));
+}
+// multiple regression; X rows start with 1. Returns coefficients and standard errors.
+function ols(X, y) {
+  const n = X.length, p = X[0].length; if (n <= p) return null;
+  const XtX = Array.from({ length: p }, (_, i) => Array.from({ length: p }, (_, j) => X.reduce((s, r) => s + r[i] * r[j], 0)));
+  const inv = invert(XtX); if (!inv) return null;
+  const Xty = Array.from({ length: p }, (_, i) => X.reduce((s, r, k) => s + r[i] * y[k], 0));
+  const beta = inv.map(row => row.reduce((s, v, j) => s + v * Xty[j], 0));
+  const s2 = y.reduce((s, v, k) => s + (v - X[k].reduce((a, x, j) => a + x * beta[j], 0)) ** 2, 0) / (n - p);
+  return { beta, se: beta.map((_, i) => Math.sqrt(Math.max(0, s2 * inv[i][i]))), df: n - p };
+}
+function corr(a, b) {
+  const ma = mean(a), mb = mean(b); let sab = 0, saa = 0, sbb = 0;
+  a.forEach((v, i) => { sab += (v - ma) * (b[i] - mb); saa += (v - ma) ** 2; sbb += (b[i] - mb) ** 2; });
+  return saa && sbb ? sab / Math.sqrt(saa * sbb) : 0;
+}
+// k-means with a deterministic farthest-point start, so the same data always gives the same groups
+function kmeans(X, k, iters = 100) {
+  const d2 = (a, b) => a.reduce((s, v, j) => s + (v - b[j]) ** 2, 0);
+  const C = [X.reduce((best, p) => p[0] > best[0] ? p : best, X[0]).slice()];
+  while (C.length < k) {
+    let bi = 0, bd = -1;
+    X.forEach((p, i) => { const d = Math.min(...C.map(c => d2(p, c))); if (d > bd) { bd = d; bi = i; } });
+    C.push(X[bi].slice());
+  }
+  const assign = new Array(X.length).fill(-1);
+  for (let it = 0; it < iters; it++) {
+    let changed = false;
+    X.forEach((p, i) => {
+      let b = 0;
+      C.forEach((c, j) => { if (d2(p, c) < d2(p, C[b])) b = j; });
+      if (assign[i] !== b) { assign[i] = b; changed = true; }
+    });
+    C.forEach((c, j) => { const m = X.filter((_, i) => assign[i] === j); if (m.length) C[j] = c.map((_, d) => mean(m.map(p => p[d]))); });
+    if (!changed) break;
+  }
+  return { assign, centroids: C };
+}
+function aggregateTerms(rows) {
+  const m = new Map();
+  for (const r of rows) {
+    const term = String(r.term).trim().toLowerCase(); if (!term) continue;
+    const a = m.get(term) || { term, campaign: r.campaign, impr: 0, clicks: 0, spend: 0, sales: 0, orders: 0 };
+    a.impr += r.impr; a.clicks += r.clicks; a.spend += r.spend; a.sales += r.sales; a.orders += r.orders;
+    m.set(term, a);
+  }
+  return [...m.values()];
+}
+
+const TERM_ORDER = ["Slow bleeder", "Rising", "Fading", "Consistent winner", "New this week"];
+const CLUSTER_ADVICE = {
+  "Money drains": "Clicks but no sales. Block the worst; check they match the product.",
+  "No sales yet, low data": "Too few clicks to judge. Leave them; R2 blocks them if they keep failing.",
+  "Winners": "Best converters under target. Harvest to exact and raise bids.",
+  "Cheap converters": "Profitable but convert less often. Keep, don't push hard.",
+  "Costly converters": "They sell, but above target ACOS. Lower bids (R4).",
+};
+
+// runs: saved weekly runs (any order). Returns everything the insights panel, decision and Excel report use.
+function analyze(allRuns) {
+  const sorted = [...allRuns].sort((a, b) => a.week.localeCompare(b.week));
+  const real = sorted.filter(r => !r.sample);
+  const runs = real.length ? real : sorted;
+  const out = { n: runs.length, hiddenSample: sorted.length - runs.length, weekly: [], series: [], trends: [], spendLink: null,
+    profitTrend: null, organic: null, terms: [], clusters: [], termCluster: {}, anomalies: [], findings: [], gaps: 0 };
+  if (!runs.length) return out;
+  const latest = runs[runs.length - 1], st = latest.settings, target = st.targetAcos / 100;
+  const first = Date.parse(runs[0].week);
+  const xs = runs.map(r => Math.round((Date.parse(r.week) - first) / (7 * DAY)));
+  out.gaps = xs.length ? xs[xs.length - 1] + 1 - xs.length : 0;
+  const wk = r => 7 / (r.settings.periodDays || 14);   // overlapping 14-day reports -> weekly equivalent
+
+  out.weekly = runs.map((r, i) => ({ week: r.week, x: xs[i], sample: r.sample, saved: !!r.savedAt,
+    spend: r.summary.spend * wk(r), sales: r.summary.sales * wk(r), orders: r.summary.orders * wk(r), clicks: r.summary.clicks * wk(r),
+    units: r.summary.weeklyUnits, baseline: r.summary.baseline, acos: r.summary.acos, tacos: r.summary.tacos,
+    adOrders: r.summary.adOrdersWk ?? r.summary.orders * wk(r), organic: r.summary.organicWk ?? 0, profit: r.summary.profitAfterAdsWk ?? 0,
+    products: Object.fromEntries(r.byProduct.map(b => [b.name, b.weeklyUnits])) }));
+  const W = out.weekly, X = W.map(w => w.x);
+  // Weekly points from 14-day reports share 7 days with the next week, so they are not independent.
+  // Treat them as n·7/days independent points and widen errors by √(days/7) (conservative).
+  const overlap = Math.max(1, mean(runs.map(r => (r.settings.periodDays || 14) / 7)));
+  const infl = Math.sqrt(overlap), dfOf = n => Math.max(1, Math.round(n / overlap) - 2);
+  out.overlap = overlap;
+
+  // 1. trend + week-8 forecast with an 80% range, per product and in total
+  out.series = [{ name: "All products", baseline: latest.summary.baseline, pts: W.map(w => ({ x: w.x, y: w.units })) }]
+    .concat(latest.products.map(b => ({ name: b.name, baseline: +b.baseline || 0,
+      pts: W.filter(w => w.products[b.name] !== undefined).map(w => ({ x: w.x, y: w.products[b.name] })) })));
+  for (const s of out.series) {
+    const fit = s.pts.length >= 3 ? linreg(s.pts.map(p => p.x), s.pts.map(p => p.y), infl) : null;
+    const proj = fit ? Math.max(0, fit.predict(7)) : null, half = fit ? fit.range(7, dfOf(s.pts.length)) : null;
+    const lo = proj === null || half === null ? null : Math.max(0, proj - half), hi = proj === null || half === null ? null : proj + half;
+    const passT = 1.5 * s.baseline, iterT = 1.2 * s.baseline;
+    let outlook;
+    if (!fit) outlook = `Need ${3 - s.pts.length} more week(s)`;
+    else if (!s.baseline) outlook = "Enter a baseline";
+    else if (lo >= passT) outlook = "PASS likely";
+    else if (proj >= passT) outlook = "PASS possible";
+    else if (hi < iterT) outlook = "FAIL likely";
+    else if (proj >= iterT) outlook = "ITERATE likely";
+    else outlook = "FAIL possible";
+    s.fit = fit; s.proj = proj; s.lo = lo; s.hi = hi;
+    out.trends.push({ name: s.name, weeks: s.pts.length, slope: fit ? fit.slope : null, r2: fit ? fit.r2 : null,
+      projected: proj, low: lo, high: hi, baseline: s.baseline, lift: proj !== null && s.baseline ? proj / s.baseline - 1 : null, outlook });
+  }
+
+  // 2. does ad spend add sales? Control for the general time trend when there are enough weeks
+  const profitPerUnit = (() => { const b = latest.byProduct, u = b.map(x => x.weeklyUnits || 1); return b.reduce((s, x, i) => s + x.profit * u[i], 0) / u.reduce((s, x) => s + x, 0); })();
+  if (W.length >= 4) {
+    const sp = W.map(w => w.spend / 1000), u = W.map(w => w.units), r = corr(sp, X), cv = sd(sp) / (mean(sp) || 1);
+    if (cv < 0.1) out.spendLink = { method: "flat", cv, weeks: W.length, profit: profitPerUnit, clear: false, per1000: 0, r };
+    else if (W.length >= 6 && Math.abs(r) < 0.9) {
+      // units = a + b·spend + c·week: b is the ad effect with the general trend held fixed; significant at 95%
+      const f = ols(W.map((w, i) => [1, sp[i], X[i]]), u);
+      if (f) { const df = Math.max(1, Math.round(W.length / overlap) - 3), se = f.se[1] * infl;
+        out.spendLink = { method: "controlled", per1000: f.beta[1], se, df, clear: se > 0 && Math.abs(f.beta[1] / se) >= t95(Math.max(1, df)),
+          trendPerWeek: f.beta[2], costPerExtraUnit: f.beta[1] > 0 ? 1000 / f.beta[1] : null, profit: profitPerUnit, weeks: W.length, r }; }
+    }
+    if (!out.spendLink) {
+      const f = linreg(sp, u);
+      if (f) out.spendLink = { method: Math.abs(r) >= 0.9 ? "confounded" : "simple", per1000: f.slope, r2: f.r2, clear: false,
+        costPerExtraUnit: f.slope > 0 ? 1000 / f.slope : null, profit: profitPerUnit, weeks: W.length, r };
+    }
+  }
+
+  // 3. profit after ads, and organic vs ad-driven units
+  if (W.length >= 3) {
+    out.profitTrend = linreg(X, W.map(w => w.profit), infl);
+    const fo = linreg(X, W.map(w => w.organic), infl), fa = linreg(X, W.map(w => w.adOrders), infl), df = dfOf(W.length);
+    // cannibalisation only when BOTH slopes are clearly non-zero (80% confidence), in opposite directions
+    const sig = (f, sign) => f.slopeSE > 0 && sign * f.slope / f.slopeSE >= t80(df);
+    if (fo && fa) out.organic = { organicSlope: fo.slope, organicR2: fo.r2, adSlope: fa.slope,
+      cannibal: W.length >= 4 && sig(fa, 1) && sig(fo, -1) };
+  }
+
+  // 4. search-term behaviour across weeks
+  const T = new Map();
+  runs.forEach((r, i) => {
+    const f = wk(r);
+    const flagged = new Set(r.actions.filter(a => /^R[23]/.test(a.rule)).map(a => a.search_term));
+    for (const row of r.rows) {
+      const term = String(row.term).trim().toLowerCase(); if (!term) continue;
+      const t = T.get(term) || { term, campaign: row.campaign, per: {}, flagged: false };
+      const p = t.per[i] || (t.per[i] = { clicks: 0, spend: 0, orders: 0, sales: 0 });
+      p.clicks += row.clicks * f; p.spend += row.spend * f; p.orders += row.orders * f; p.sales += row.sales * f;
+      t.campaign = row.campaign; if (flagged.has(term)) t.flagged = true;
+      T.set(term, t);
+    }
+  });
+  const last = runs.length - 1;
+  // account conversion rate (non-brand) = the yardstick for "this term converts worse than normal"
+  const BR = wordList(st.brandWords);
+  const nb = [...T.values()].filter(t => !BR.some(b => t.term.includes(b)));
+  const nbC = nb.reduce((s, t) => s + Object.values(t.per).reduce((a, p) => a + p.clicks, 0), 0);
+  const nbO = nb.reduce((s, t) => s + Object.values(t.per).reduce((a, p) => a + p.orders, 0), 0);
+  const pAcc = nbC ? nbO / nbC : 0;
+  out.accountCvr = pAcc;
+  for (const t of T.values()) {
+    if (BR.some(b => t.term.includes(b))) continue;
+    const idx = Object.keys(t.per).map(Number).sort((a, b) => a - b);
+    const tot = idx.reduce((s, i) => { for (const k in s) s[k] += t.per[i][k]; return s; }, { clicks: 0, spend: 0, orders: 0, sales: 0 });
+    const bi = productIndexIn(latest.products, t.campaign), book = latest.products[bi < 0 ? 0 : bi];
+    const cpa = book.price * target, acos = tot.sales ? tot.spend / tot.sales : null;
+    const fit = idx.length >= 3 ? linreg(idx.map(i => xs[i]), idx.map(i => t.per[i].clicks)) : null;
+    const c0 = t.per[idx[0]].clicks, c1 = t.per[idx[idx.length - 1]].clicks;
+    const sellWeeks = idx.filter(i => t.per[i].orders >= 0.5).length;
+    // chance of seeing zero orders in this many clicks if the term converted like the account average (binomial)
+    const pZero = pAcc > 0 ? (1 - pAcc) ** tot.clicks : 1;
+    let type = null, advice = "";
+    if (tot.orders < 0.5 && !t.flagged && idx.length >= 2 && pZero < 0.1 && tot.spend >= 0.5 * cpa) {
+      type = "Slow bleeder";
+      advice = `${Math.round(tot.clicks)} clicks and ₹${Math.round(tot.spend)} over ${idx.length} weeks with no sale; an average term would have sold by now (${Math.round(pZero * 100)}% chance of this by luck). Add NEGATIVE EXACT.`;
+    } else if (idx.length >= 3 && tot.orders >= 2 && idx.slice(-2).every(i => t.per[i].orders < 0.5)) {
+      type = "Fading";
+      advice = "Sold earlier but not in the last 2 weeks. Check price, stock and competitor ads on this search.";
+    } else if (idx.length >= 3 && fit && fit.slope > 0 && c1 >= 1.3 * c0 && tot.orders >= 1) {
+      type = "Rising";
+      advice = `Clicks up from ${c0.toFixed(0)} to ${c1.toFixed(0)} a week and it sells. Give it its own exact keyword or raise its bid.`;
+    } else if (idx.length >= 3 && sellWeeks / idx.length >= 0.6 && acos !== null && acos <= target) {
+      type = "Consistent winner";
+      advice = "Sells most weeks under target ACOS. Protect it: keep the bid, consider a top-of-search boost.";
+    } else if (runs.length >= 2 && idx[0] === last) {
+      type = "New this week";
+      advice = "First appearance. Leave it to collect data.";
+    }
+    if (type) out.terms.push({ type, term: t.term, book: book.name, weeks: idx.length, clicks: tot.clicks, spend: tot.spend,
+      spendPerWeek: tot.spend / idx.length, orders: tot.orders, acos, trend: fit ? fit.slope : null, advice });
+  }
+  out.terms.sort((a, b) => TERM_ORDER.indexOf(a.type) - TERM_ORDER.indexOf(b.type) || b.spend - a.spend);
+
+  // 5. k-means groups of the latest week's search terms (clicks, CTR, conversion, ACOS); clusters with the same name merge
+  const pts = aggregateTerms(latest.rows).filter(a => a.clicks >= 3);
+  if (pts.length >= 6) {
+    const raw = pts.map(a => [Math.log1p(a.clicks), a.impr ? a.clicks / a.impr : 0, a.orders / a.clicks, a.sales ? Math.min(a.spend / a.sales, 1.5) : 1.5]);
+    const mu = raw[0].map((_, j) => mean(raw.map(r => r[j]))), sg = raw[0].map((_, j) => sd(raw.map(r => r[j])) || 1);
+    const Z = raw.map(r => r.map((v, j) => (v - mu[j]) / sg[j]));
+    // choose the number of groups (3–5: at least winners, drains and the rest) with the best silhouette, i.e. the most clearly separated
+    let best = null;
+    for (let k = 3; k <= Math.max(3, Math.min(5, Math.floor(pts.length / 3))); k++) {
+      const km = kmeans(Z, k), sil = silhouette(Z, km.assign);
+      if (!best || sil > best.sil + 1e-9) best = { k, sil, assign: km.assign };
+    }
+    const { k, assign } = best;
+    out.clusterQuality = { k, silhouette: best.sil };
+    const all = totals(pts), overallCvr = all.clicks ? all.orders / all.clicks : 0;
+    const byLabel = {};
+    for (let j = 0; j < k; j++) {
+      const m = pts.filter((_, i) => assign[i] === j); if (!m.length) continue;
+      const g = totals(m), cvr = g.clicks ? g.orders / g.clicks : 0, acos = g.sales ? g.spend / g.sales : null;
+      const label = !g.orders ? (g.clicks / m.length >= st.minClicks / 2 ? "Money drains" : "No sales yet, low data")
+        : acos <= target ? (cvr >= overallCvr ? "Winners" : "Cheap converters") : "Costly converters";
+      (byLabel[label] = byLabel[label] || []).push(...m);
+    }
+    for (const [label, m] of Object.entries(byLabel)) {
+      const g = totals(m);
+      m.forEach(a => out.termCluster[a.term] = label);
+      out.clusters.push({ label, advice: CLUSTER_ADVICE[label], n: m.length, clicks: g.clicks, spend: g.spend, orders: g.orders, sales: g.sales,
+        cvr: g.clicks ? g.orders / g.clicks : 0, acos: g.sales ? g.spend / g.sales : null,
+        examples: m.sort((a, b) => b.spend - a.spend).slice(0, 3).map(a => a.term) });
+    }
+    out.clusters.sort((a, b) => b.spend - a.spend);
+  }
+
+  // 6. alerts: latest week outside the 95% prediction range of the earlier weeks' trend, in the bad direction, and ≥20% off
+  if (W.length >= 5) {
+    const metrics = [ // name, value, unit, +1 = higher is bad / -1 = lower is bad, hint
+      ["Cost per click", w => w.clicks ? w.spend / w.clicks : NaN, "₹", 1, "Competitors may be bidding up, or a bid rule raised bids."],
+      ["ACOS", w => w.acos, "%", 1, "More spend without matching sales. Check the listing, price, stock and Buy Box."],
+      ["Ad conversion rate", w => w.clicks ? w.orders / w.clicks : NaN, "%", -1, "Fewer clicks turn into orders. Check reviews, price and stock."],
+      ["Units per week", w => w.units, "", -1, "Total sales dropped. Check stock, Buy Box and whether a competitor cut price."],
+      ["Profit after ads per week", w => w.profit, "₹", -1, "Ads are eating the margin. Check bids and wasted spend."],
+    ];
+    for (const [name, f, unit, dir, hint] of metrics) {
+      const ys = W.map(f), v = ys[ys.length - 1];
+      const prev = W.slice(0, -1).map((w, i) => [w.x, ys[i]]).filter(p => Number.isFinite(p[1]));
+      if (!Number.isFinite(v) || prev.length < 4) continue;
+      const fit = linreg(prev.map(p => p[0]), prev.map(p => p[1]), infl); if (!fit) continue;
+      const xl = X[X.length - 1], exp = fit.predict(xl), s = Math.max(fit.pe(xl) || 0, Math.abs(exp) * 0.05, 1e-9);
+      const z = (v - exp) / s;
+      if (z * dir >= t95(dfOf(prev.length)) && Math.abs(exp) > 1e-9 && Math.abs(v / exp - 1) >= 0.2) out.anomalies.push({ metric: name, value: v, usual: exp, z, change: v / exp - 1, unit, hint });
+    }
+  }
+
+  // plain-language findings
+  const F = out.findings, fmt = (v, u) => u === "%" ? pct(v) : u === "₹" ? "₹" + Math.round(v).toLocaleString("en-IN") : v.toFixed(1);
+  if (runs.some(r => r.sample)) F.push("Includes SAMPLE data, not real store data.");
+  if (out.hiddenSample) F.push(`${out.hiddenSample} sample week(s) left out because real weeks exist.`);
+  if (overlap > 1.05) F.push(`Reports overlap (${Math.round(overlap * 7)}-day reports run weekly), so forecast ranges are widened ×${infl.toFixed(1)}. Download "Last 7 days" reports for sharper trends.`);
+  if (out.gaps > 0) F.push(`${out.gaps} week(s) missing between saved weeks; trends still use the real dates.`);
+  for (const t of out.trends) {
+    if (t.slope === null) { if (t.name === "All products") F.push(`${t.weeks} week(s) saved. Forecasts start at 3 weeks.`); continue; }
+    F.push(`${t.name}: units ${t.slope >= 0 ? "rising" : "falling"} ${Math.abs(t.slope).toFixed(1)} a week. Week-8 forecast ${t.projected.toFixed(1)}/week` +
+      (t.low !== null ? ` (80% range ${t.low.toFixed(1)}–${t.high.toFixed(1)})` : "") +
+      (t.baseline ? ` vs pass line ${(1.5 * t.baseline).toFixed(1)}: ${t.outlook}.` : `: ${t.outlook}.`));
+  }
+  const L = out.spendLink;
+  if (L) {
+    const pays = L.costPerExtraUnit && L.costPerExtraUnit < L.profit;
+    if (L.method === "controlled" && L.clear && L.per1000 > 0)
+      F.push(`After allowing for the general trend, each extra ₹1,000 a week of ads adds about ${L.per1000.toFixed(1)} units a week (± ${L.se.toFixed(1)}): ₹${Math.round(L.costPerExtraUnit)} of ads per extra unit vs ₹${Math.round(L.profit)} profit per unit. ${pays ? "Extra spend pays for itself." : "Extra spend costs more than it earns."}`);
+    else if (L.method === "controlled")
+      F.push(`After allowing for the general trend, ad spend shows no clear effect on total units yet (${L.per1000.toFixed(1)} ± ${L.se.toFixed(1)} units per ₹1,000). Ads may mostly capture sales that would happen anyway.`);
+    else if (L.method === "flat")
+      F.push(`Ad spend barely changed across ${L.weeks} weeks (variation ${pct(L.cv)}), so its effect on sales can't be measured. Run a budget test: change the budget by 30% for 2 weeks.`);
+    else if (L.method === "confounded")
+      F.push(`Ad spend and time rose together (correlation ${L.r.toFixed(2)}), so the effect of ads can't be separated from general growth. Run a budget test: change the budget by 30% for 2 weeks.`);
+    else
+      F.push(`Early read (needs 6+ weeks to control for the trend): each extra ₹1,000 a week of ads goes with ${L.per1000.toFixed(1)} more units a week (R² ${L.r2.toFixed(2)}).`);
+  }
+  if (out.profitTrend) { const p = W[W.length - 1].profit; F.push(`Profit after ads: ₹${Math.round(p).toLocaleString("en-IN")} a week now, ${out.profitTrend.slope >= 0 ? "rising" : "falling"} ₹${Math.abs(Math.round(out.profitTrend.slope))} a week.`); }
+  if (out.organic && out.organic.cannibal) F.push("Ad orders are rising while organic (non-ad) sales fall: ads may be taking sales you'd get anyway. Test lower brand-term bids.");
+  const of = type => out.terms.filter(t => t.type === type);
+  const sb = of("Slow bleeder"); if (sb.length) F.push(`${sb.length} slow-bleeding search term(s): about ₹${Math.round(sb.reduce((s, t) => s + t.spendPerWeek, 0))} a week with no sale across weeks.`);
+  const ri = of("Rising"); if (ri.length) F.push(`${ri.length} rising search term(s) to push: ${ri.slice(0, 3).map(t => `"${t.term}"`).join(", ")}.`);
+  const fa = of("Fading"); if (fa.length) F.push(`${fa.length} former winner(s) stopped selling: ${fa.slice(0, 3).map(t => `"${t.term}"`).join(", ")}.`);
+  const md = out.clusters.find(c => c.label === "Money drains");
+  if (md) F.push(`Clustering found a "money drain" group: ${md.n} terms, ₹${Math.round(md.spend)} spent this period, no sales.`);
+  for (const a of out.anomalies) F.push(`Alert: ${a.metric} is ${fmt(a.value, a.unit)} vs ${fmt(a.usual, a.unit)} expected from the trend (${a.change >= 0 ? "+" : ""}${pct(a.change)}). ${a.hint}`);
+  return out;
+}
+
+// ---------- This week's decision: budget call + prioritised to-do with ₹ impact ----------
+function decide(run, A) {
+  const S = run.summary, st = run.settings, target = st.targetAcos / 100, wkf = 7 / (S.ruleDays || S.days);
+  const total = A.trends[0], L = A.spendLink, budget = +st.dailyBudget || 0;
+  const unclear = L && (L.method === "confounded" || L.method === "flat" || (L.method === "controlled" && !L.clear));
+  let call, change, why;
+  if (S.acos !== null && S.breakEven && S.acos > S.breakEven) { call = "Cut"; change = -20; why = `ACOS ${pct(S.acos)} is above break-even ${pct(S.breakEven)}: each ad sale loses money. Cut the daily budget and apply this week's bid-downs.`; }
+  else if (S.profitAfterAdsWk < 0 && S.acos !== null && S.acos > target) { call = "Cut"; change = -10; why = `Profit after ads is negative (₹${Math.round(S.profitAfterAdsWk)} a week) and ACOS ${pct(S.acos)} is above target.`; }
+  else if (L && L.method === "controlled" && L.clear && L.costPerExtraUnit && L.costPerExtraUnit < L.profit) { call = "Raise"; change = 20; why = `Extra ad spend is shown to add sales profitably (₹${Math.round(L.costPerExtraUnit)} of ads per extra unit vs ₹${Math.round(L.profit)} profit).`; }
+  else if (S.acos !== null && S.acos <= target) {
+    if (unclear) { call = "Test"; change = 30; why = `ACOS ${pct(S.acos)} is under target, but we can't yet tell if ads add sales or just capture them. Raise the budget 30% for 2 weeks, then compare total units with the trend.`; }
+    else { call = "Raise"; change = 15; why = `ACOS ${pct(S.acos)} is under target ${pct(target)}${total && total.slope !== null ? ` and the week-8 forecast says "${total.outlook}"` : ""}. Add the extra to the Exact winners and Brand campaigns.`; }
+  }
+  else if (S.acos !== null) { call = "Hold"; change = 0; why = `ACOS ${pct(S.acos)} is above target ${pct(target)} but below break-even. Keep the budget; let this week's bid cuts work first.`; }
+  else { call = "Hold"; change = 0; why = "No ad sales data yet. Keep the budget and keep saving weeks."; }
+
+  const items = [], sum = a => a.reduce((s, x) => s + x.spend, 0) * wkf;
+  const blocks = run.actions.filter(a => /^R[23]/.test(a.rule));
+  const slow = A.terms.filter(t => t.type === "Slow bleeder");
+  if (blocks.length || slow.length) items.push({ area: "Cut waste", title: `Block ${blocks.length + slow.length} search term(s)`,
+    detail: `${blocks.length} from this week's rules (R2/R3)${slow.length ? ` + ${slow.length} slow bleeder(s) from Term patterns` : ""}`,
+    impact: `saves ≈ ₹${Math.round(sum(blocks) + slow.reduce((s, t) => s + t.spendPerWeek, 0))}/week` });
+  const harvest = run.actions.filter(a => a.rule === "R1 HARVEST" && a.action.startsWith("Add as"));
+  if (harvest.length) items.push({ area: "Grow", title: `Move ${harvest.length} proven search(es) to exact match`,
+    detail: harvest.slice(0, 3).map(a => `"${a.search_term}"`).join(", "), impact: `${Math.round(harvest.reduce((s, a) => s + a.orders, 0) * wkf * 10) / 10} orders/week already` });
+  const down = run.actions.filter(a => a.rule === "R4 BID DOWN"), up = run.actions.filter(a => /^R[56]/.test(a.rule));
+  if (down.length) items.push({ area: "Efficiency", title: `Lower ${down.length} bid(s)`, detail: down.slice(0, 3).map(a => a.targeting).join(", "), impact: `on ≈ ₹${Math.round(sum(down))}/week of spend above target ACOS` });
+  if (up.length) items.push({ area: "Grow", title: `Raise ${up.length} bid(s)`, detail: up.slice(0, 3).map(a => a.targeting).join(", "), impact: "cheap or starved winners" });
+  const harvested = new Set(harvest.map(a => a.search_term));
+  const rising = A.terms.filter(t => t.type === "Rising" && !harvested.has(t.term));
+  if (rising.length) items.push({ area: "Grow", title: `Push ${rising.length} rising search term(s)`, detail: rising.slice(0, 3).map(t => `"${t.term}"`).join(", "), impact: "growing demand that converts" });
+  const conv = A.anomalies.find(a => a.metric === "Ad conversion rate" || a.metric === "Units per week");
+  const fading = A.terms.filter(t => t.type === "Fading");
+  if (conv || fading.length || (A.organic && A.organic.cannibal)) items.push({ area: "Listing", title: "Check the product page, price, stock and reviews",
+    detail: [conv && conv.metric + " dropped", fading.length && `${fading.length} former winner(s) stopped selling`, A.organic && A.organic.cannibal && "organic sales falling while ad sales rise"].filter(Boolean).join("; "),
+    impact: "ads can't fix a page that doesn't convert" });
+  return { call, change, why, budget, newBudget: budget ? Math.round(budget * (1 + change / 100)) : null, items };
+}
+
+// ---------- 6-week demo history (SAMPLE) so the trends can be seen before real data exists ----------
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const DEMO_TERMS = [ // campaign, ad group, targeting, match, term, impressions, CTR, conversion, CPC, weekly growth, first week
+  ["SP | Auto | Science", "auto", "*", "-", "human body book for kids", 2400, .017, .10, 6, .15, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "science experiments for kids", 3100, .007, 0, 6.8, 0, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "science book pdf free download", 900, .007, 0, 6.6, 0, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "dinosaur book for kids", 800, .006, .12, 6, .05, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "space book for kids", 650, .008, 0, 7, 0, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "anatomy book for children", 700, .012, .18, 6.5, -.25, 0],
+  ["SP | Brand | Science", "brand", "sunny shelf science lab", "EXACT", "sunny shelf science lab", 60, .07, .45, 3, .1, 0],
+  ["SP | Broad | Science", "broad", "kids science book", "BROAD", "kids science book", 1500, .02, .06, 13, -.05, 0],
+  ["SP | Broad | Science", "broad", "kids science book", "BROAD", "body systems book for children", 500, .012, 0, 8, 0, 0],
+  ["SP | Auto | Snack", "auto", "*", "-", "healthy recipes for kids", 1800, .014, .12, 7, .2, 0],
+  ["SP | Auto | Snack", "auto", "*", "-", "nutrition book for kids", 1200, .014, 0, 7, 0, 0],
+  ["SP | Auto | Snack", "auto", "*", "-", "picky eater book", 300, .012, .15, 6, .4, 2],
+  ["SP | Auto | Snack", "auto", "*", "-", "free recipe pdf", 400, .01, 0, 5, 0, 0],
+];
+const DEMO_BUDGET = [1, 1, 1.35, 1.35, 1, 1.4];   // budget changes week to week, so the ad effect can be measured
+function demoRuns(products, settings, lastWeek) {
+  settings = { ...settings, periodDays: 7 };   // the recommended set-up: non-overlapping 7-day reports
+  const rnd = mulberry32(42), days = 7, runs = [];
+  for (let w = 0; w < 6; w++) {
+    const week = new Date(Date.parse(lastWeek) - (5 - w) * 7 * DAY).toISOString().slice(0, 10);
+    const rows = [], adOrders = products.map(() => 0);
+    for (const [campaign, ad_group, targeting, match, term, impr0, ctr, cvr, cpc, g, start] of DEMO_TERMS) {
+      if (w < start) continue;
+      const impr = Math.round(impr0 * 0.5 * DEMO_BUDGET[w] * (1 + g) ** (w - start) * (0.85 + 0.3 * rnd()));
+      const clicks = Math.round(impr * ctr * (0.85 + 0.3 * rnd()));
+      const orders = cvr ? Math.round(clicks * cvr * (0.7 + 0.6 * rnd())) : 0;
+      const bi = productIndexIn(products, campaign), b = bi < 0 ? 0 : bi;
+      adOrders[b] += orders;
+      rows.push({ campaign, ad_group, targeting, match, term, impr, clicks, spend: r2(clicks * cpc * (0.9 + 0.2 * rnd())), sales: orders * products[b].price, orders });
+    }
+    // total units = organic (slowly growing) + most ad orders (some ad orders would have happened anyway)
+    const bks = clone(products).map((b, i) => {
+      const organic = (+b.baseline || 0) * 0.75 * (1 + 0.03 * w) * days / 7 * (0.93 + 0.14 * rnd());
+      const units = Math.round(organic + 0.8 * adOrders[i]);
+      return { ...b, periodUnits: units, periodSales: units * b.price };
+    });
+    const run = buildRun({ rows, products: bks, settings, week, source: "SAMPLE demo history", sample: true });
+    run.savedAt = new Date().toISOString();
+    runs.push(run);
+  }
+  return runs;
+}
+</script>
+
+<script>
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("sge." + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("sge." + k, JSON.stringify(v)); } catch {} },
+};
+function esc(v) { return String(v ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+const inr = v => (v < 0 ? "−₹" : "₹") + Math.abs(Math.round(v)).toLocaleString("en-IN");
+const pctOr = v => v === null || v === undefined || !Number.isFinite(v) ? "—" : pct(v);
+const signPct = v => v === null || v === undefined || !Number.isFinite(v) ? "—" : (v >= 0 ? "+" : "") + pct(v);
+function mondayOf(d) { d = new Date(d); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
+
+// ---------- weekly history database (IndexedDB; memory fallback where the browser blocks storage) ----------
+const DB = {
+  h: null, mem: [],
+  init() {
+    return new Promise(res => {
+      try {
+        const r = indexedDB.open("seller-growth-engine", 1);
+        r.onupgradeneeded = () => r.result.createObjectStore("runs", { keyPath: "week" });
+        r.onsuccess = () => { this.h = r.result; res(); };
+        r.onerror = () => res();
+      } catch { res(); }
+    });
+  },
+  req(mode, fn) {
+    return new Promise((res, rej) => { const q = fn(this.h.transaction("runs", mode).objectStore("runs")); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); });
+  },
+  async all() { return this.h ? this.req("readonly", s => s.getAll()) : this.mem.slice(); },
+  async put(run) { if (this.h) return this.req("readwrite", s => s.put(run)); this.mem = this.mem.filter(r => r.week !== run.week).concat(run); },
+  async del(week) { if (this.h) return this.req("readwrite", s => s.delete(week)); this.mem = this.mem.filter(r => r.week !== week); },
+  async clear() { if (this.h) return this.req("readwrite", s => s.clear()); this.mem = []; },
+};
+let runs = [];          // saved weeks
+let lastRun = null;     // this session's run, saved or not
+const allRuns = () => (lastRun ? runs.filter(r => r.week !== lastRun.week).concat(lastRun) : runs.slice()).sort((a, b) => a.week.localeCompare(b.week));
+async function reloadRuns() { runs = (await DB.all()).sort((a, b) => a.week.localeCompare(b.week)); }
+
+// ---------- step 1: product setup ----------
+const PRODUCT_FIELDS = [
+  { id: "name", label: "Product", text: true },
+  { id: "match", label: "Campaign name contains", text: true },
+  { id: "asin", label: "ASIN", text: true },
+  { id: "price", label: "Price ₹", company: true },
+  { id: "cogs", label: "Cost per unit ₹", company: true },
+  { id: "referral", label: "Referral fee ₹", company: true },
+  { id: "fba", label: "FBA fee ₹", company: true },
+  { id: "baseline", label: "Baseline units/week", company: true },
+];
+const SALES_FIELDS = [{ id: "periodUnits", label: "Units sold in period" }, { id: "periodSales", label: "Sales in period ₹" }];
+const DEFAULT_PRODUCTS = [
+  { name: "Junior Science Lab Book", match: "science", asin: "B0DEMO0001", price: 399, cogs: 120, referral: 45, fba: 65, baseline: 10, periodUnits: 30, periodSales: 11970 },
+  { name: "Snack Smart Cookbook", match: "snack", asin: "B0DEMO0002", price: 349, cogs: 100, referral: 40, fba: 60, baseline: 5, periodUnits: 12, periodSales: 4188 },
+];
+const SETTINGS = [
+  { id: "periodDays", label: "Report period (days)", help: "Set from the report dates", def: 7 },
+  { id: "targetAcos", label: "Target ACOS (%)", help: "Keep below each product's break-even ACOS", def: 30 },
+  { id: "dailyBudget", label: "Current daily budget (₹, all campaigns)", help: "Used for the budget recommendation", def: 500 },
+  { id: "maxBid", label: "Max bid (₹)", help: "Highest bid the tool will ever suggest", def: 15 },
+  { id: "currentBid", label: "Default bid (₹)", help: "Used when a keyword got no clicks", def: 6 },
+  { id: "minClicks", label: "Clicks before blocking", help: "0 sales after this many clicks = block", def: 15 },
+  { id: "brandWords", label: "Brand words", help: "Comma-separated; these searches are never blocked", def: "sunny shelf, sunnyshelf", text: true },
+  { id: "blockWords", label: "Blocked words", help: "Comma-separated; searches containing them are blocked", def: DEFAULT_BLOCK_WORDS, text: true },
+];
+let products = store.get("products", clone(DEFAULT_PRODUCTS)).map(b => ({ asin: "", ...b }));
+let entered = new Set(store.get("productsEntered", []));   // "row:field"
+let vals = Object.assign(Object.fromEntries(SETTINGS.map(f => [f.id, f.def])), store.get("settings", {}));
+let salesInfo = store.get("salesInfo", { by: "placeholder", at: null });
+const saveProducts = () => { store.set("products", products); store.set("productsEntered", [...entered]); };
+
+function inputCell(i, f, ph) {
+  return `<td><input ${f.text ? `type="text" class="${f.id === "name" ? "wide" : ""}"` : `type="number" step="any" min="0" class="${ph ? "ph" : ""}"`}
+    data-b="${i}" data-f="${f.id}" value="${esc(products[i][f.id])}" title="${ph ? "Placeholder estimate: type the real figure" : ""}"></td>`;
+}
+function renderProducts() {
+  $("products").innerHTML = "<tr>" + PRODUCT_FIELDS.map(f => `<th>${f.label}</th>`).join("") +
+    "<th>Profit/unit</th><th>Break-even ACOS</th><th>Max ad cost/order</th><th></th></tr>" +
+    products.map((b, i) => "<tr>" + PRODUCT_FIELDS.map(f => inputCell(i, f, f.company && !entered.has(`${i}:${f.id}`))).join("") +
+      `<td class="calc num" id="d-p-${i}"></td><td class="calc num" id="d-be-${i}"></td><td class="calc num" id="d-cpa-${i}"></td>
+      <td>${products.length > 1 ? `<button class="x" data-pdel="${i}" title="Remove product">✕</button>` : ""}</td></tr>`).join("");
+  renderSales(); renderDerived();
+}
+function renderSales() {
+  $("sales").innerHTML = "<tr><th>Product</th>" + SALES_FIELDS.map(f => `<th>${f.label}</th>`).join("") + "<th>Units per week</th><th>vs baseline</th></tr>" +
+    products.map((b, i) => `<tr><td>${esc(b.name)}</td>` + SALES_FIELDS.map(f => inputCell(i, f, salesInfo.by === "placeholder")).join("") +
+      `<td class="calc num" id="d-u-${i}"></td><td class="calc num" id="d-l-${i}"></td></tr>`).join("");
+  $("salesNote").innerHTML = salesInfo.by === "placeholder" ? `<span class="warn">Placeholder figures.</span> Drop the Business Report or type this period's real totals.`
+    : `From ${esc(salesInfo.by)}${salesInfo.at ? ` · updated ${new Date(salesInfo.at).toLocaleString("en-IN")}` : ""}. Use the same dates as the ads report.`;
+}
+function onProductInput(e) {
+  const inp = e.target.closest("input[data-f]"); if (!inp) return;
+  const i = +inp.dataset.b, id = inp.dataset.f, f = PRODUCT_FIELDS.find(x => x.id === id) || SALES_FIELDS.find(x => x.id === id);
+  products[i][id] = f.text ? inp.value : (parseFloat(inp.value) || 0);
+  inp.classList.remove("ph"); inp.title = "";
+  if (f.company) entered.add(`${i}:${id}`);
+  if (SALES_FIELDS.includes(f)) { salesInfo = { by: "typed in", at: Date.now() }; store.set("salesInfo", salesInfo); $("salesNote").textContent = "Typed in. Use the same dates as the ads report."; }
+  if (id === "name") renderSales();
+  saveProducts(); renderDerived();
+}
+$("products").addEventListener("input", onProductInput);
+$("sales").addEventListener("input", onProductInput);
+$("products").addEventListener("click", e => {
+  const b = e.target.closest("[data-pdel]"); if (!b) return;
+  const i = +b.dataset.pdel;
+  if (!confirm(`Remove ${products[i].name}?`)) return;
+  products.splice(i, 1);
+  entered = new Set([...entered].flatMap(k => { const [r, f] = k.split(":"); return +r === i ? [] : [`${+r > i ? r - 1 : r}:${f}`]; }));
+  saveProducts(); renderProducts();
+});
+$("addProduct").onclick = () => {
+  products.push({ name: "New product", match: "", asin: "", price: 0, cogs: 0, referral: 0, fba: 0, baseline: 0, periodUnits: 0, periodSales: 0 });
+  saveProducts(); renderProducts();
+};
+function renderSettings() {
+  $("inputs").innerHTML = SETTINGS.map(f => `
+    <label class="f">${f.label}<small>${f.help}</small>
+      <input ${f.text ? 'type="text"' : 'type="number" step="any" min="0"'} data-id="${f.id}" value="${esc(vals[f.id])}"></label>`).join("");
+}
+$("inputs").addEventListener("input", e => {
+  const inp = e.target.closest("input[data-id]"); if (!inp) return;
+  const f = SETTINGS.find(x => x.id === inp.dataset.id);
+  vals[inp.dataset.id] = f.text ? inp.value : (parseFloat(inp.value) || 0);
+  store.set("settings", vals); renderDerived();
+});
+function renderDerived() {
+  const t = vals.targetAcos / 100, days = vals.periodDays || 14;
+  products.forEach((b, i) => {
+    const contrib = profitOf(b), be = b.price ? contrib / b.price : 0;
+    $(`d-p-${i}`).textContent = inr(contrib);
+    $(`d-be-${i}`).innerHTML = (be * 100).toFixed(1) + "%" + (t > be ? ` <span class="warn" title="Target ACOS is above break-even: every ad sale of this product loses money">⚠ below target</span>` : "");
+    $(`d-cpa-${i}`).textContent = inr(b.price * t);
+    const u = (+b.periodUnits || 0) / days * 7;
+    if ($(`d-u-${i}`)) { $(`d-u-${i}`).textContent = u.toFixed(1); $(`d-l-${i}`).textContent = b.baseline ? signPct(u / b.baseline - 1) : "—"; }
+  });
+  const companyFields = PRODUCT_FIELDS.filter(f => f.company), total = products.length * companyFields.length;
+  const n = products.reduce((s, _, i) => s + companyFields.filter(f => entered.has(`${i}:${f.id}`)).length, 0);
+  $("filled").textContent = `${n} of ${total} company figures entered${n < total ? "; the rest are placeholders" : ""}.`;
+}
+$("resetInputs").onclick = () => {
+  if (!confirm("Reset all products and settings to the placeholder estimates?")) return;
+  products = clone(DEFAULT_PRODUCTS); entered = new Set(); salesInfo = { by: "placeholder", at: null };
+  vals = Object.fromEntries(SETTINGS.map(f => [f.id, f.def]));
+  saveProducts(); store.set("settings", vals); store.set("salesInfo", salesInfo); renderProducts(); renderSettings(); renderDerived();
+};
+
+// ---------- step 2: reports ----------
+const GRID_COLS = [["campaign", "Campaign"], ["ad_group", "Ad group"], ["targeting", "Targeting"], ["match", "Match"],
+  ["term", "Customer search term"], ["impr", "Impr."], ["clicks", "Clicks"], ["spend", "Spend ₹"], ["sales", "Sales ₹"], ["orders", "Orders"]];
+const NUMERIC = new Set(["impr", "clicks", "spend", "sales", "orders"]);
+const SAMPLE = [
+  ["SP | Auto | Science", "auto", "*", "-", "human body book for kids", 2400, 40, 240, 1596, 4],
+  ["SP | Auto | Science", "auto", "*", "-", "science experiments for kids", 3100, 22, 150, 0, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "science book pdf free download", 900, 6, 40, 0, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "b0abc12345", 700, 9, 210, 0, 0],
+  ["SP | Auto | Science", "auto", "*", "-", "dinosaur book for kids", 800, 5, 30, 399, 1],
+  ["SP | Brand | Science", "brand", "sunny shelf science lab", "EXACT", "sunny shelf science lab", 60, 4, 12, 798, 2],
+  ["SP | Broad | Science", "broad", "kids science book", "BROAD", "kids science book", 1500, 30, 400, 798, 2],
+  ["SP | Broad | Science", "broad", "kids science book", "BROAD", "sunny shelf book", 50, 16, 80, 0, 0],
+  ["SP | Auto | Snack", "auto", "*", "-", "healthy recipes for kids", 1800, 25, 175, 1047, 3],
+  ["SP | Auto | Snack", "auto", "*", "-", "nutrition book for kids", 1200, 17, 120, 0, 0],
+  ["SP | Auto | Snack", "auto", "*", "-", "free recipe pdf", 400, 4, 20, 0, 0],
+];
+let rows = store.get("rows", []), source = store.get("source", ""), period = store.get("period", null);
+function setRows(r, src, per = null) {
+  rows = r; source = src; period = per;
+  store.set("rows", rows); store.set("source", source); store.set("period", period);
+  renderGrid();
+}
+function renderGrid() {
+  const head = "<tr>" + GRID_COLS.map(c => `<th>${c[1]}</th>`).join("") + "<th></th></tr>";
+  const body = rows.map((r, i) => "<tr>" + GRID_COLS.map(([k]) =>
+    `<td contenteditable data-i="${i}" data-k="${k}" class="${NUMERIC.has(k) ? "num" : ""}">${esc(r[k])}</td>`).join("") +
+    `<td><button class="x" data-del="${i}" title="Delete row">✕</button></td></tr>`).join("");
+  $("grid").innerHTML = head + (body || `<tr><td colspan="11" class="note">No rows yet.</td></tr>`);
+  $("srcNote").innerHTML = rows.length ? `<span class="okc">✓</span> ${rows.length} rows · ${esc(source)}${period ? ` · covers ${period.start} to ${period.end} (${period.days} days)` : ""}` : "No report loaded yet.";
+}
+$("grid").addEventListener("input", e => {
+  const td = e.target.closest("td[data-k]"); if (!td) return;
+  rows[td.dataset.i][td.dataset.k] = td.textContent.trim();
+  if (source.indexOf("edited") < 0) source += " (edited)";
+  store.set("rows", rows); store.set("source", source);
+});
+$("grid").addEventListener("click", e => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  rows.splice(+b.dataset.del, 1); setRows(rows, source, period);
+});
+$("loadSample").onclick = () => setRows(SAMPLE.map(a => Object.fromEntries(GRID_COLS.map(([k], j) => [k, a[j]]))), "SAMPLE data (not real store data)");
+$("addRow").onclick = () => { rows.push({ campaign: "", ad_group: "", targeting: "", match: "EXACT", term: "", impr: 0, clicks: 0, spend: 0, sales: 0, orders: 0 }); setRows(rows, source || "typed in", period); };
+$("clearRows").onclick = () => setRows([], "");
+
+function parseCSV(text) {
+  const out = []; let row = [], cell = "", q = false;
+  text = text.replace(/^﻿/, "");
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += c;
+    } else if (c === '"') q = true;
+    else if (c === ",") { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(cell); out.push(row); row = []; cell = "";
+    } else cell += c;
+  }
+  if (cell !== "" || row.length) { row.push(cell); out.push(row); }
+  return out;
+}
+async function readTable(file) {
+  if (/\.xlsx?$/i.test(file.name)) {
+    if (!window.XLSX) throw new Error("Reading Excel files needs an internet connection the first time. Save the report as CSV instead, or connect and reload.");
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+    return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: true });
+  }
+  return parseCSV(await file.text());
+}
+async function readAdsReport(file) {
+  try {
+    const table = await readTable(file);
+    const recs = mapTable(table);
+    const per = reportPeriod(recs);
+    if (per) {
+      vals.periodDays = per.days; store.set("settings", vals); renderSettings(); renderDerived();
+      $("weekOf").value = mondayOf(Date.parse(per.end) + DAY);
+    }
+    setRows(recs.map(normRow), file.name, per);
+    $("runNote").textContent = "";
+  } catch (err) { $("srcNote").innerHTML = `<span class="warn">${esc(err.message)}</span>`; }
+}
+async function readBusinessReport(file) {
+  try {
+    const table = await readTable(file);
+    const { per, unmatched } = parseBusinessReport(table[0] || [], table.slice(1), products);
+    per.forEach((p, i) => { if (p.rows) { products[i].periodUnits = p.units; products[i].periodSales = Math.round(p.sales); } });
+    salesInfo = { by: file.name, at: Date.now() }; store.set("salesInfo", salesInfo);
+    saveProducts(); renderSales(); renderDerived();
+    const missing = products.filter((_, i) => !per[i].rows).map(b => b.name);
+    $("salesNote").innerHTML += (missing.length ? ` <span class="warn">No rows found for ${esc(missing.join(", "))}: check its ASIN in step 1.</span>` : "") +
+      (unmatched.length ? ` ${unmatched.length} other product row(s) ignored.` : "");
+  } catch (err) { $("salesNote").innerHTML = `<span class="warn">${esc(err.message)}</span>`; }
+}
+function dropZone(zone, input, handler) {
+  input.onchange = e => { e.target.files[0] && handler(e.target.files[0]); e.target.value = ""; };
+  ["dragenter", "dragover"].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.add("over"); }));
+  ["dragleave", "drop"].forEach(t => zone.addEventListener(t, e => { e.preventDefault(); zone.classList.remove("over"); }));
+  zone.addEventListener("drop", e => e.dataTransfer.files[0] && handler(e.dataTransfer.files[0]));
+}
+dropZone($("drop"), $("file"), readAdsReport);
+dropZone($("drop2"), $("file2"), readBusinessReport);
+
+// ---------- step 3–4: run, decision & results ----------
+let filter = "ALL";
+$("weekOf").value = mondayOf(new Date());
+
+$("run").onclick = async () => {
+  if (!rows.length) { $("runNote").textContent = "Load the ads report, the sample, or type rows first."; return; }
+  const week = $("weekOf").value || mondayOf(new Date());
+  const sample = source.startsWith("SAMPLE");
+  if (!sample) {
+    const prev = runs.filter(r => !r.sample && r.week < week).pop();
+    const same = prev && products.every(b => { const p = prev.products.find(x => x.name === b.name); return p && p.periodUnits === b.periodUnits && p.periodSales === b.periodSales; });
+    if (same && !confirm(`Total sales per product are exactly the same as the week of ${prev.week}. Did you update step 2b for this week?\n\nOK = run anyway, Cancel = go back and update.`)) return;
+    if (salesInfo.by === "placeholder" && !confirm("Total sales in step 2b are still placeholder estimates. TACoS, units and profit will be wrong.\n\nOK = run anyway, Cancel = go back.")) return;
+  }
+  // 7-day reports: add last week's saved rows so the rules see 14 days
+  const lastWk = new Date(Date.parse(week) - 7 * DAY).toISOString().slice(0, 10);
+  const prevWeek = (vals.periodDays || 14) <= 7 && runs.find(r => r.week === lastWk && !r.sample && (r.settings.periodDays || 14) <= 7);
+  lastRun = buildRun({ rows, products, settings: vals, week, source, sample, period, ruleRows: prevWeek ? prevWeek.rows : null });
+  const existed = runs.some(r => r.week === week);
+  if (!sample) {
+    lastRun.savedAt = new Date().toISOString();
+    try { await DB.put(lastRun); await reloadRuns(); $("saveNote").innerHTML = `<span class="okc">✓ Saved</span> as the week of ${week}${existed ? " (replaced the earlier run for that week)" : ""}.`; }
+    catch (e) { lastRun.savedAt = null; $("saveNote").innerHTML = `<span class="warn">Couldn't save: ${esc(e.message)}</span>`; }
+  } else $("saveNote").textContent = "Sample data is not saved automatically.";
+  $("saveWeek").classList.toggle("hidden", !sample);
+  $("results").classList.remove("hidden");
+  $("runNote").textContent = `Ran ${new Date().toLocaleString("en-IN")} on ${rows.length} rows${sample ? " of SAMPLE data" : ""}.`;
+  renderResults(); renderHist(); renderInsights();
+  $("results").scrollIntoView({ behavior: "smooth" });
+};
+$("saveWeek").onclick = async () => {
+  if (!lastRun) return;
+  lastRun.savedAt = new Date().toISOString();
+  await DB.put(lastRun); await reloadRuns();
+  $("saveNote").textContent = `Saved sample week of ${lastRun.week}.`;
+  renderHist(); renderInsights();
+};
+
+function renderDecision() {
+  const A = analyze(allRuns()), D = decide(lastRun, A);
+  const budget = D.budget ? (D.change ? ` · ₹${D.budget} → ₹${D.newBudget}/day` : ` · keep ₹${D.budget}/day`) : "";
+  const label = { Raise: `RAISE BUDGET +${D.change}%`, Cut: `CUT BUDGET ${D.change}%`, Test: `BUDGET TEST +${D.change}% for 2 weeks`, Hold: "HOLD BUDGET" }[D.call];
+  $("decision").innerHTML = `<div class="decision ${D.call}"><div class="call">${label}<span class="note" style="font-size:14px;font-weight:600">${budget}</span></div>
+    <div>${esc(D.why)}</div>
+    ${D.items.length ? `<ol class="prio">${D.items.map(it => `<li><span class="area">${esc(it.area)}</span><b>${esc(it.title)}</b> · <span class="impact">${esc(it.impact)}</span><br><span class="note">${esc(it.detail)}</span></li>`).join("")}</ol>` : `<p class="note">No changes needed this week.</p>`}
+    ${lastRun.sample ? `<p class="note warn">Based on SAMPLE data.</p>` : ""}</div>`;
+}
+function renderResults() {
+  const R = lastRun, S = R.summary;
+  $("aiOut").textContent = ""; $("aiNote").textContent = "";
+  renderDecision();
+  $("tiles").innerHTML = [
+    ["Ad spend / week", inr(S.spendWk)], ["Ad sales", inr(S.sales)], ["ACOS", pctOr(S.acos)], ["TACoS", pctOr(S.tacos)],
+    ["Units / week", S.weeklyUnits.toFixed(1)], ["of which organic", S.organicWk.toFixed(1)], ["Profit after ads / week", inr(S.profitAfterAdsWk)], ["Changes to make", R.actions.length],
+  ].map(([k, v]) => `<div class="tile"><span>${k}</span><b>${v}</b></div>`).join("");
+  const line = (name, b, rowsN, plain) => `<tr><td>${esc(name)}</td><td class="num">${rowsN}</td><td class="num">${inr(b.spend)}</td>
+    <td class="num">${inr(b.sales)}</td><td class="num">${b.orders}</td><td class="num">${b.sales ? pct(b.spend / b.sales) : "—"}</td>
+    <td class="num">${!plain && b.periodSales ? pct(b.spend / b.periodSales) : "—"}</td><td class="num">${plain ? "—" : b.weeklyUnits.toFixed(1)}</td>
+    <td class="num">${!plain && b.baseline ? signPct(b.weeklyUnits / b.baseline - 1) : "—"}</td><td class="num">${plain ? "—" : inr(b.profitAfterAdsWk)}</td></tr>`;
+  $("byProduct").innerHTML = `<tr><th>By product</th><th>Report rows</th><th>Ad spend (${S.days}d)</th><th>Ad sales</th><th>Ad orders</th><th>ACOS</th><th>TACoS</th><th>Units/week</th><th>vs baseline</th><th>Profit after ads/wk</th></tr>` +
+    R.byProduct.map(b => line(b.name, b, b.rows)).join("") +
+    (R.unmatched.rows ? line(`Not linked to a product (priced as ${R.products[0].name})`, R.unmatched, R.unmatched.rows, true) : "");
+  const counts = {};
+  R.actions.forEach(a => counts[a.rule] = (counts[a.rule] || 0) + 1);
+  filter = "ALL"; renderChips(counts); renderActions();
+}
+function renderChips(counts) {
+  const all = [["ALL", `All (${lastRun.actions.length})`], ...Object.keys(counts).sort().map(r => [r, `${r} (${counts[r]})`])];
+  $("chips").innerHTML = all.map(([k, l]) => `<button data-f="${k}" class="${k === filter ? "on" : ""}">${l}</button>`).join("");
+}
+$("chips").addEventListener("click", e => {
+  const b = e.target.closest("[data-f]"); if (!b) return;
+  filter = b.dataset.f;
+  $("chips").querySelectorAll("button").forEach(x => x.classList.toggle("on", x.dataset.f === filter));
+  renderActions();
+});
+const ACT_COLS = ["rule", "action", "value", "campaign", "ad_group", "targeting", "search_term", "clicks", "spend", "orders", "acos", "why"];
+function renderActions() {
+  const list = lastRun.actions.filter(a => filter === "ALL" || a.rule === filter);
+  $("actions").innerHTML = "<tr>" + ["Rule", "Do this", "Value", "Campaign", "Ad group", "Targeting", "Search term", "Clicks", "Spend ₹", "Orders", "ACOS", "Why"].map(h => `<th>${h}</th>`).join("") + "</tr>" +
+    (list.map(a => "<tr>" + ACT_COLS.map(k => k === "rule"
+      ? `<td class="rule ${a.rule.slice(0, 2)}">${a.rule}</td>`
+      : `<td class="${["clicks", "spend", "orders", "acos"].includes(k) ? "num" : ""}">${esc(a[k])}</td>`).join("") + "</tr>").join("")
+      || `<tr><td colspan="12" class="note">No changes needed this week.</td></tr>`);
+}
+function download(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const csvCell = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+$("dlActions").onclick = () => download(`sge_actions_${lastRun.week}.csv`,
+  new Blob(["﻿" + [ACT_COLS.join(","), ...lastRun.actions.map(a => ACT_COLS.map(k => csvCell(a[k])).join(","))].join("\n")], { type: "text/csv" }));
+
+// ---------- step 5: history ----------
+function renderHist() {
+  const all = allRuns(), anyReal = all.some(r => !r.sample);
+  $("dbNote").textContent = DB.h ? `${runs.length} week(s) stored in this browser.` : "This view blocks storage: history lasts only until the page closes. Use Back up.";
+  if (!all.length) {
+    $("history").innerHTML = `<tr><td class="note">No weeks yet. Each Monday run with real data is saved automatically. Load the demo history to see how trends work.</td></tr>`;
+    $("verdict").innerHTML = ""; return;
+  }
+  const scored = anyReal ? all.filter(r => !r.sample) : all, first = Date.parse(scored[0].week);
+  const wno = r => Math.round((Date.parse(r.week) - first) / (7 * DAY)) + 1;
+  let prevX = null;
+  $("history").innerHTML = "<tr><th>Wk</th><th>Week of</th><th>Source</th><th>Ad spend/wk</th><th>ACOS</th><th>TACoS</th><th>Units/wk</th><th>vs baseline</th><th>Organic/wk</th><th>Profit after ads/wk</th><th>Changes</th><th></th></tr>" +
+    all.map(r => {
+      const S = r.summary, out = anyReal && r.sample, x = out ? null : wno(r);
+      const gap = x !== null && prevX !== null && x - prevX > 1 ? ` <span class="tag ph">${x - prevX - 1} wk missing</span>` : "";
+      if (x !== null) prevX = x;
+      return `<tr><td>${out ? "—" : x}</td><td>${r.week}${!r.savedAt ? " <span class='tag ph'>not saved</span>" : ""}${gap}</td>
+      <td>${esc(r.source)}${r.sample ? ` <span class='tag ph'>${out ? "sample · left out" : "sample"}</span>` : ""}</td>
+      <td class="num">${inr(S.spendWk ?? S.spend * 7 / S.days)}</td><td class="num">${pctOr(S.acos)}</td><td class="num">${pctOr(S.tacos)}</td>
+      <td class="num">${S.weeklyUnits.toFixed(1)}</td><td class="num">${S.baseline ? signPct(S.weeklyUnits / S.baseline - 1) : "—"}</td>
+      <td class="num">${(S.organicWk ?? 0).toFixed(1)}</td><td class="num">${inr(S.profitAfterAdsWk ?? 0)}</td>
+      <td class="num">${r.actions.length}</td><td>${r.savedAt ? `<button class="x" data-hdel="${r.week}" title="Delete this week">✕</button>` : ""}</td></tr>`; }).join("");
+  const last = scored[scored.length - 1];
+  const v = verdict(wno(last), last.summary.weeklyUnits, last.summary.baseline, last.summary.tacos);
+  $("verdict").innerHTML = `<div class="verdict ${v.code}">${v.text}</div>`;
+}
+$("history").addEventListener("click", async e => {
+  const b = e.target.closest("[data-hdel]"); if (!b) return;
+  if (!confirm(`Delete the week of ${b.dataset.hdel} from history?`)) return;
+  await DB.del(b.dataset.hdel);
+  if (lastRun && lastRun.week === b.dataset.hdel) lastRun = null;
+  await reloadRuns(); renderHist(); renderInsights();
+});
+$("loadDemo").onclick = async () => {
+  if (runs.length && !confirm("Add 6 weeks of SAMPLE history? Saved weeks with the same dates are replaced. Sample weeks are left out of the analysis once real weeks exist.")) return;
+  const lastWeek = new Date(Date.parse(mondayOf(new Date())) - 7 * DAY).toISOString().slice(0, 10);
+  for (const r of demoRuns(products, vals, lastWeek)) await DB.put(r);
+  await reloadRuns(); renderHist(); renderInsights();
+};
+$("clearSample").onclick = async () => {
+  for (const r of runs.filter(r => r.sample)) await DB.del(r.week);
+  if (lastRun && lastRun.sample) lastRun = null;
+  await reloadRuns(); renderHist(); renderInsights();
+};
+$("clearHist").onclick = async () => {
+  if (!confirm("Delete every saved week? Back up first if you may need it.")) return;
+  await DB.clear(); lastRun = null;
+  await reloadRuns(); renderHist(); renderInsights();
+};
+$("exportAll").onclick = () => download(`sge_backup_${mondayOf(new Date())}.json`,
+  new Blob([JSON.stringify({ version: 3, products, entered: [...entered], settings: vals, runs }, null, 1)], { type: "application/json" }));
+$("importAll").onchange = async e => {
+  try {
+    const d = JSON.parse(await e.target.files[0].text());
+    if (d.products) { products = d.products; entered = new Set(d.entered || []); saveProducts(); renderProducts(); }
+    if (d.settings) { vals = Object.assign(vals, d.settings); store.set("settings", vals); renderSettings(); renderDerived(); }
+    for (const r of d.runs || []) await DB.put(r);
+    await reloadRuns(); renderHist(); renderInsights();
+  } catch { alert("That file isn't a backup from this page."); }
+  e.target.value = "";
+};
+
+// ---------- step 6: insights ----------
+function renderInsights() {
+  const A = analyze(allRuns());
+  if (!A.n) { $("insights").innerHTML = `<p class="note">No data yet. Run a week, or load the 6-week demo history.</p>`; return; }
+  const T = A.trends.filter(t => t.weeks);
+  let h = `<h3>Key findings</h3><ul class="findings">${A.findings.map(f => `<li>${esc(f)}</li>`).join("")}</ul>`;
+  h += `<h3>Units per week by product: actual, trend and week-8 forecast range</h3><div class="chartbox" id="chartUnits"></div>`;
+  h += `<div class="charts"><div><h3>Profit after ads per week</h3><div class="chartbox" id="chartProfit"></div></div>
+        <div><h3>Where the units come from: ads vs organic</h3><div class="chartbox" id="chartMix"></div></div></div>`;
+  h += `<h3>Forecast table (linear regression, 80% range)</h3><div class="tablewrap"><table><tr><th>Series</th><th>Weeks</th><th>Change/week</th><th>Fit R²</th><th>Week-8 forecast</th><th>80% range</th><th>Pass line (+50%)</th><th>Outlook</th></tr>` +
+    T.map(t => `<tr><td>${esc(t.name)}</td><td class="num">${t.weeks}</td><td class="num">${t.slope === null ? "—" : (t.slope >= 0 ? "+" : "") + t.slope.toFixed(2)}</td>
+      <td class="num">${t.r2 === null ? "—" : t.r2.toFixed(2)}</td><td class="num">${t.projected === null ? "—" : t.projected.toFixed(1)}</td>
+      <td class="num">${t.low === null ? "—" : `${t.low.toFixed(1)}–${t.high.toFixed(1)}`}</td><td class="num">${t.baseline ? (1.5 * t.baseline).toFixed(1) : "—"}</td><td><b>${esc(t.outlook)}</b></td></tr>`).join("") + `</table></div>`;
+  if (A.clusters.length) h += `<h3>Search-term groups in the latest week (k-means clustering)</h3><div class="tablewrap"><table><tr><th>Group</th><th>Terms</th><th>Clicks</th><th>Spend</th><th>Orders</th><th>Conversion</th><th>ACOS</th><th>Examples</th><th>What to do</th></tr>` +
+    A.clusters.map(c => `<tr><td class="type">${esc(c.label)}</td><td class="num">${c.n}</td><td class="num">${c.clicks}</td><td class="num">${inr(c.spend)}</td>
+      <td class="num">${c.orders}</td><td class="num">${pct(c.cvr)}</td><td class="num">${pctOr(c.acos)}</td><td>${c.examples.map(esc).join("; ")}</td><td>${esc(c.advice)}</td></tr>`).join("") + `</table></div>`;
+  else h += `<p class="note">Clustering needs at least 6 search terms with 3+ clicks in the latest week.</p>`;
+  if (A.terms.length) h += `<h3>Search-term patterns across weeks</h3><div class="tablewrap"><table><tr><th>Pattern</th><th>Search term</th><th>Product</th><th>Weeks seen</th><th>Clicks</th><th>Spend</th><th>Orders</th><th>ACOS</th><th>What to do</th></tr>` +
+    A.terms.map(t => `<tr><td class="type">${t.type}</td><td>${esc(t.term)}</td><td>${esc(t.book)}</td><td class="num">${t.weeks}</td><td class="num">${t.clicks.toFixed(0)}</td>
+      <td class="num">${inr(t.spend)}</td><td class="num">${t.orders.toFixed(1)}</td><td class="num">${pctOr(t.acos)}</td><td>${esc(t.advice)}</td></tr>`).join("") +
+    `</table></div><p class="note">Totals are weekly equivalents: a 14-day report counts half for each week, so overlapping reports aren't double counted.</p>`;
+  else if (A.n < 2) h += `<p class="note">Search-term patterns need at least 2 weeks.</p>`;
+  $("insights").innerHTML = h;
+  renderUnitsChart(A); renderBars("chartProfit", A, [{ name: "Profit after ads", key: "profit" }], { signed: true, money: true });
+  renderBars("chartMix", A, [{ name: "From ads", key: "adOrders", col: "var(--s1)" }, { name: "Organic", key: "organic", col: "var(--s2)" }], { stacked: true });
+}
+
+// round axis limits to steps of 1, 2, 2.5 or 5 × 10^k with 4 intervals or so
+function niceScale(lo, hi) {
+  lo = Math.min(0, lo); hi = Math.max(hi, lo + 1);
+  const raw = (hi - lo) / 4, p = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(k => k * p).find(s => s >= raw);
+  return { lo: Math.floor(lo / step) * step, hi: Math.ceil(hi / step) * step, step };
+}
+const niceMax = v => niceScale(0, v).hi;
+
+function renderUnitsChart(A, box = $("chartUnits")) {
+  if (!box) return;
+  const S = A.series.slice(1, 4).filter(s => s.pts.length);
+  if (!S.length) { box.innerHTML = ""; return; }
+  const W = 720, H = 280, m = { l: 40, r: 120, t: 14, b: 28 };
+  const maxX = Math.max(7, ...A.weekly.map(w => w.x));
+  const ys = S.flatMap(s => [...s.pts.map(p => p.y), s.baseline * 1.5, s.fit ? s.fit.predict(maxX) : 0, s.hi || 0]);
+  const maxY = niceMax(Math.max(1, ...ys));
+  const X = x => m.l + x / maxX * (W - m.l - m.r), Y = y => H - m.b - Math.max(0, y) / maxY * (H - m.t - m.b);
+  let g = "";
+  const step = niceScale(0, maxY).step;
+  for (let v = 0; v <= maxY + 1e-9; v += step) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${+v.toFixed(1)}</text>`;
+  for (let x = 0; x <= maxX; x++) g += `<text x="${X(x)}" y="${H - 8}" text-anchor="middle">W${x + 1}</text>`;
+  const labels = [];
+  S.forEach((s, j) => {
+    const col = `var(--s${j + 1})`, off = (j - (S.length - 1) / 2) * 8;
+    g += `<line x1="${X(0)}" x2="${X(maxX)}" y1="${Y(s.baseline * 1.5)}" y2="${Y(s.baseline * 1.5)}" stroke="${col}" stroke-width="1" stroke-dasharray="6 4" opacity=".7"/>`;
+    const lp = s.pts[s.pts.length - 1];
+    if (s.fit) g += `<line x1="${X(lp.x)}" y1="${Y(s.fit.predict(lp.x))}" x2="${X(maxX)}" y2="${Y(s.fit.predict(maxX))}" stroke="${col}" stroke-width="2" stroke-dasharray="2 4" stroke-linecap="round"/>`;
+    if (s.lo !== null && s.lo !== undefined && maxX >= 7) {
+      const x7 = X(7) + off;
+      g += `<line x1="${x7}" x2="${x7}" y1="${Y(s.lo)}" y2="${Y(s.hi)}" stroke="${col}" stroke-width="2"/><line x1="${x7 - 4}" x2="${x7 + 4}" y1="${Y(s.lo)}" y2="${Y(s.lo)}" stroke="${col}" stroke-width="2"/><line x1="${x7 - 4}" x2="${x7 + 4}" y1="${Y(s.hi)}" y2="${Y(s.hi)}" stroke="${col}" stroke-width="2"/>`;
+    }
+    g += `<polyline fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" points="${s.pts.map(p => `${X(p.x)},${Y(p.y)}`).join(" ")}"/>`;
+    g += s.pts.map(p => `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="4" fill="${col}" stroke="var(--card)" stroke-width="2"/>`).join("");
+    labels.push({ y: s.fit ? Y(s.fit.predict(maxX)) : Y(lp.y), name: s.name.split(" ")[0], col });
+  });
+  labels.sort((a, b) => a.y - b.y).forEach((l, i, arr) => { if (i && l.y - arr[i - 1].y < 15) l.y = arr[i - 1].y + 15; });
+  labels.forEach(l => g += `<circle cx="${W - m.r + 12}" cy="${l.y}" r="4" fill="${l.col}"/><text class="lbl" x="${W - m.r + 20}" y="${l.y + 4}">${esc(l.name)}</text>`);
+  g += `<line class="xh" y1="${m.t}" y2="${H - m.b}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/>`;
+  g += `<rect class="hit" x="${m.l}" y="${m.t}" width="${W - m.l - m.r}" height="${H - m.t - m.b}" fill="transparent"/>`;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly units by product with trend, week-8 forecast range and +50% pass line">${g}</svg>
+    <div class="legend">${S.map((s, j) => `<span><span class="sw" style="background:var(--s${j + 1})"></span>${esc(s.name)}</span>`).join("")}
+      <span><i style="border-top-style:solid"></i>actual</span><span><i style="border-top-style:dotted"></i>trend</span><span><i style="border-top-style:dashed"></i>pass line (+50%)</span><span>┃ week-8 80% range</span></div>
+    <div class="tip hidden"></div>`;
+  hover(box, A.weekly, X, W, w => `<b>W${w.x + 1} · ${w.week}</b>${w.sample ? " (sample)" : ""}<br>` + S.map((s, j) => {
+    const p = s.pts.find(p => p.x === w.x);
+    return `<span class="sw" style="background:var(--s${j + 1})"></span>${esc(s.name.split(" ")[0])}: ${p ? p.y.toFixed(1) : "—"} units (pass ${(s.baseline * 1.5).toFixed(1)})`;
+  }).join("<br>"));
+}
+
+// bar chart per week: one signed series (green above zero, red below) or stacked series
+function renderBars(target, A, series, { stacked = false, signed = false, money = false } = {}) {
+  const box = typeof target === "string" ? $(target) : target; if (!box) return;
+  const Wk = A.weekly; if (!Wk.length) { box.innerHTML = ""; return; }
+  const W = 360, H = 220, m = { l: 48, r: 10, t: 12, b: 28 };
+  const tot = w => series.reduce((s, se) => s + Math.max(0, w[se.key]), 0);
+  const vals = Wk.flatMap(w => stacked ? [tot(w)] : series.map(se => w[se.key]));
+  const sc = niceScale(Math.min(0, ...vals), Math.max(0, ...vals)), maxY = sc.hi, minY = sc.lo;
+  const n = Wk.length, slot = (W - m.l - m.r) / n, bw = Math.min(36, slot * 0.6);
+  const X = i => m.l + slot * i + slot / 2, Y = v => m.t + (maxY - v) / (maxY - minY || 1) * (H - m.t - m.b);
+  const f = v => money ? inr(v) : v.toFixed(1);
+  let g = "";
+  for (let v = minY; v <= maxY + 1e-9; v += sc.step) g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end">${money ? (Math.abs(v) >= 1000 ? +(v / 1000).toFixed(1) + "k" : Math.round(v)) : +v.toFixed(1)}</text>`;
+  g += `<line x1="${m.l}" x2="${W - m.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--muted)"/>`;
+  Wk.forEach((w, i) => {
+    g += `<text x="${X(i)}" y="${H - 8}" text-anchor="middle">W${w.x + 1}</text>`;
+    let base = 0;
+    series.forEach((se, j) => {
+      const v = stacked ? Math.max(0, w[se.key]) : w[se.key];
+      const y0 = Y(stacked ? base : 0), y1 = Y(stacked ? base + v : v), top = Math.min(y0, y1), h = Math.max(1, Math.abs(y1 - y0) - (stacked && j ? 2 : 0));
+      const col = signed ? (v >= 0 ? "var(--pass)" : "var(--fail)") : se.col;
+      g += `<rect x="${X(i) - bw / 2}" y="${top}" width="${bw}" height="${h}" rx="3" fill="${col}"><title>W${w.x + 1} ${w.week} · ${se.name}: ${f(v)}</title></rect>`;
+      base += v;
+    });
+  });
+  const last = Wk[n - 1], lv = stacked ? tot(last) : last[series[0].key];
+  g += `<text class="lbl" x="${X(n - 1)}" y="${Math.min(Y(Math.max(0, lv)), Y(0)) - 5}" text-anchor="middle">${f(lv)}</text>`;
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(series.map(s => s.name).join(" and "))} per week">${g}</svg>` +
+    (stacked ? `<div class="legend">${series.map(s => `<span><span class="sq" style="background:${s.col}"></span>${s.name}</span>`).join("")}<span>hover a bar for values</span></div>`
+      : `<div class="legend"><span><span class="sq" style="background:var(--pass)"></span>profit</span><span><span class="sq" style="background:var(--fail)"></span>loss</span><span>= units × profit per unit − ad spend</span></div>`);
+}
+
+function hover(box, weekly, X, W, html) {
+  const svg = box.querySelector("svg"), xh = box.querySelector(".xh"), tip = box.querySelector(".tip"), hit = box.querySelector(".hit");
+  hit.addEventListener("mousemove", e => {
+    const r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) / r.width * W;
+    const w = weekly.reduce((b, w) => Math.abs(X(w.x) - sx) < Math.abs(X(b.x) - sx) ? w : b, weekly[0]);
+    xh.setAttribute("x1", X(w.x)); xh.setAttribute("x2", X(w.x)); xh.setAttribute("visibility", "visible");
+    tip.innerHTML = html(w); tip.classList.remove("hidden");
+    tip.style.left = Math.max(0, Math.min(X(w.x) / W * r.width + 12, r.width - tip.offsetWidth - 4)) + "px"; tip.style.top = "10px";
+  });
+  hit.addEventListener("mouseleave", () => { xh.setAttribute("visibility", "hidden"); tip.classList.add("hidden"); });
+}
+
+// ---------- optional AI brief: Claude turns the engine's numbers into a plain-language summary ----------
+// The engine computes every number; the model only explains them. The key stays in this browser.
+const AI_SYSTEM = `You are the weekly ads analyst for a small online seller. You receive this week's results from a deterministic growth engine as JSON.
+Write a brief for the store owner with these parts: a one-line headline; "What happened" (3 bullets); "Decision" (the budget call and why, 2 sentences); "Do this week" (the top 3 actions, each with its money impact); "Watch out" (1 risk).
+Use only numbers that appear in the JSON, copied exactly; never calculate new figures or invent data. If "sample" is true, start the headline with "SAMPLE DATA:". Plain language, under 220 words, no tables.`;
+let lastBrief = null;
+function aiPayload() {
+  const A = analyze(allRuns()), D = decide(lastRun, A), S = lastRun.summary, rd = v => v === null || !Number.isFinite(v) ? null : Math.round(v * 100) / 100;
+  return { week: lastRun.week, sample: lastRun.sample, currency: "INR",
+    summary: { adSpendPerWeek: rd(S.spendWk), adSales: rd(S.sales), acos: rd(S.acos), tacos: rd(S.tacos), unitsPerWeek: rd(S.weeklyUnits),
+      organicUnitsPerWeek: rd(S.organicWk), baselineUnitsPerWeek: S.baseline, profitAfterAdsPerWeek: rd(S.profitAfterAdsWk), changesToMake: lastRun.actions.length },
+    decision: { call: D.call, budgetChangePct: D.change, dailyBudget: D.budget, newDailyBudget: D.newBudget, why: D.why },
+    priorities: D.items, findings: A.findings,
+    forecast: A.trends.filter(t => t.slope !== null).map(t => ({ series: t.name, week8Forecast: rd(t.projected), low: rd(t.low), high: rd(t.high), passLine: rd(1.5 * t.baseline), outlook: t.outlook })) };
+}
+const aiPrompt = () => `${AI_SYSTEM}\n\nDATA:\n${JSON.stringify(aiPayload(), null, 1)}`;
+try { const k = localStorage.getItem("sge.aikey"); if (k) { $("aiKey").value = k; $("aiRemember").checked = true; } } catch {}
+$("aiCopy").onclick = async () => {
+  if (!lastRun) return;
+  try { await navigator.clipboard.writeText(aiPrompt()); $("aiNote").textContent = "Copied. Paste it into Claude or any AI chat."; }
+  catch { $("aiOut").textContent = aiPrompt(); $("aiNote").textContent = "Copy the text below."; }
+};
+$("aiRun").onclick = async () => {
+  if (!lastRun) return;
+  const key = $("aiKey").value.trim(), model = $("aiModel").value;
+  if (!key) { $("aiNote").textContent = "Paste an API key first, or use Copy prompt instead."; return; }
+  try { $("aiRemember").checked ? localStorage.setItem("sge.aikey", key) : localStorage.removeItem("sge.aikey"); } catch {}
+  const headers = { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2026-10-21", "anthropic-dangerous-direct-browser-access": "true" };
+  const body = { model, max_tokens: 2000, output_config: { effort: "low" }, system: AI_SYSTEM,
+    messages: [{ role: "user", content: JSON.stringify(aiPayload(), null, 1) }] };
+  // Opus and Sonnet: if a safety check declines, the API retries on a fallback model in the same call
+  if (model !== "claude-haiku-5-5") { headers["anthropic-beta"] = "server-side-fallback-2026-07-01"; body.fallbacks = "default"; }
+  $("aiRun").disabled = true; $("aiNote").textContent = "Writing…";
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers, body: JSON.stringify(body) });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error?.message || `HTTP ${res.status}`);
+    if (j.stop_reason === "refusal") throw new Error("The model declined this request.");
+    const text = j.content.filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+    lastBrief = { week: lastRun.week, model, text };
+    $("aiOut").innerHTML = esc(text).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+    $("aiNote").textContent = `Written by ${model} · ${j.usage?.input_tokens ?? "?"} in / ${j.usage?.output_tokens ?? "?"} out tokens · included in the Excel report.`;
+  } catch (e) { $("aiNote").innerHTML = `<span class="warn">${esc(e.message)}</span>`; }
+  $("aiRun").disabled = false;
+};
+
+// ---------- Excel report ----------
+function loadExcelJS() {
+  if (window.ExcelJS) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js";
+    s.onload = res; s.onerror = () => rej(new Error("Couldn't load the Excel library. Connect to the internet and try again."));
+    document.head.appendChild(s);
+  });
+}
+const RULE_ARGB = { R1: "FF1F7A5C", R2: "FFB42318", R3: "FF8A5A00", R4: "FFB54708", R5: "FF175CD3", R6: "FF6941C6" };
+const CALL_ARGB = { Raise: "FF1F7A5C", Cut: "FFB42318", Test: "FFB54708", Hold: "FFB54708" };
+const CALL_TINT = { Raise: "FFE6F2EC", Cut: "FFFBE9E7", Test: "FFFDF1E3", Hold: "FFFDF1E3" };
+const FMT = { inr: '"₹"#,##0;[Red]-"₹"#,##0', inr2: '"₹"#,##0.00', pct: "0%", n0: "#,##0", n1: "0.0", n2: "0.00" };
+const XL = { green: "FF1F7A5C", ink: "FF1D2421", muted: "FF5F6B66", line: "FFE2E0D8", band: "FFF7F6F2", tile: "FFF3F1EA", white: "FFFFFFFF", tint: "FFE6F2EC" };
+// chart colours for images: the light theme, so the report prints the same everywhere
+const LIGHT = { "--bg": "#f6f5f1", "--card": "#ffffff", "--ink": "#1d2421", "--muted": "#5f6b66", "--line": "#e2e0d8", "--accent": "#1f7a5c",
+  "--pass": "#1f7a5c", "--fail": "#b42318", "--iterate": "#b54708", "--s1": "#2a78d6", "--s2": "#eb6834", "--s3": "#1baf7a", "--grid": "#ebe9e2", "--chip": "#efede6" };
+const callLabel = D => ({ Raise: `RAISE BUDGET +${D.change}%`, Cut: `CUT BUDGET ${D.change}%`, Test: `BUDGET TEST +${D.change}% for 2 weeks`, Hold: "HOLD BUDGET" }[D.call]) +
+  (D.budget ? (D.change ? `  ·  ₹${D.budget} → ₹${D.newBudget} per day` : `  ·  keep ₹${D.budget} per day`) : "");
+
+// on-screen SVG chart -> PNG with resolved colours and a legend strip underneath
+function svgToPng(svg, legend, scale = 2) {
+  const NS = "http://www.w3.org/2000/svg", vb = svg.viewBox.baseVal, W = vb.width, H = vb.height + (legend.length ? 28 : 0);
+  const c = svg.cloneNode(true), res = v => v.replace(/var\((--[\w-]+)\)/g, (_, n) => LIGHT[n] || "#888888");
+  c.querySelectorAll("title, .hit, .xh").forEach(e => e.remove());
+  c.setAttribute("xmlns", NS); c.setAttribute("viewBox", `0 0 ${W} ${H}`); c.setAttribute("width", W * scale); c.setAttribute("height", H * scale);
+  c.setAttribute("font-family", "Helvetica, Arial, sans-serif");
+  c.querySelectorAll("*").forEach(el => {
+    for (const a of ["fill", "stroke"]) { const v = el.getAttribute(a); if (v && v.includes("var(")) el.setAttribute(a, res(v)); }
+    if (el.tagName === "text") {
+      const lbl = el.classList.contains("lbl");
+      if (!el.getAttribute("fill")) el.setAttribute("fill", lbl ? LIGHT["--ink"] : LIGHT["--muted"]);
+      if (!el.getAttribute("font-size")) el.setAttribute("font-size", lbl ? 12 : 11);
+    }
+  });
+  const el = (tag, attrs, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text) e.textContent = text; return e; };
+  c.insertBefore(el("rect", { x: 0, y: 0, width: W, height: H, fill: "#ffffff" }), c.firstChild);
+  let x = 12; const y = H - 12;
+  for (const it of legend) {
+    const col = res(it.color);
+    if (it.kind === "box") c.appendChild(el("rect", { x, y: y - 9, width: 10, height: 10, rx: 2, fill: col }));
+    else c.appendChild(el("line", { x1: x, x2: x + 18, y1: y - 4, y2: y - 4, stroke: col, "stroke-width": 2,
+      "stroke-dasharray": it.kind === "dash" ? "6 4" : it.kind === "dot" ? "2 4" : "", "stroke-linecap": "round" }));
+    const w = it.kind === "box" ? 14 : 24;
+    c.appendChild(el("text", { x: x + w, y, "font-size": 11, fill: LIGHT["--ink"] }, it.label));
+    x += w + it.label.length * 6.2 + 16;
+  }
+  const url = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(c));
+  return new Promise((ok, fail) => {
+    const img = new Image();
+    img.onload = () => { const cv = document.createElement("canvas"); cv.width = W * scale; cv.height = H * scale; cv.getContext("2d").drawImage(img, 0, 0); ok({ base64: cv.toDataURL("image/png"), w: W, h: H }); };
+    img.onerror = () => fail(new Error("chart image failed"));
+    img.src = url;
+  });
+}
+async function chartImages(A) {
+  const out = {}, div = () => document.createElement("div");
+  try {
+    const u = div(); renderUnitsChart(A, u);
+    const S = A.series.slice(1, 4).filter(s => s.pts.length);
+    if (u.querySelector("svg")) out.units = await svgToPng(u.querySelector("svg"), [
+      ...S.map((s, j) => ({ label: s.name, color: `var(--s${j + 1})`, kind: "line" })),
+      { label: "trend", color: "var(--muted)", kind: "dot" }, { label: "pass line (+50%)", color: "var(--muted)", kind: "dash" }, { label: "| week-8 80% range", color: "#ffffff", kind: "box" }]);
+    const p = div(); renderBars(p, A, [{ name: "Profit after ads", key: "profit" }], { signed: true, money: true });
+    if (p.querySelector("svg")) out.profit = await svgToPng(p.querySelector("svg"), [{ label: "profit after ads (₹/week)", color: "var(--pass)", kind: "box" }, { label: "loss", color: "var(--fail)", kind: "box" }]);
+    const m = div(); renderBars(m, A, [{ name: "From ads", key: "adOrders", col: "var(--s1)" }, { name: "Organic", key: "organic", col: "var(--s2)" }], { stacked: true });
+    if (m.querySelector("svg")) out.mix = await svgToPng(m.querySelector("svg"), [{ label: "units from ads", color: "var(--s1)", kind: "box" }, { label: "organic units", color: "var(--s2)", kind: "box" }]);
+  } catch (e) { console.warn(e); }
+  return out;
+}
+
+async function buildExcel() {
+  await loadExcelJS();
+  const all = allRuns(), cur = lastRun || all[all.length - 1];
+  if (!cur) throw new Error("Run a week or load the demo history first.");
+  const A = analyze(all), D = decide(cur, A), S = cur.summary, st = cur.settings;
+  const imgs = await chartImages(A);
+  const wb = new ExcelJS.Workbook(); wb.creator = "Seller Growth Engine"; wb.created = new Date();
+  const fill = argb => ({ type: "pattern", pattern: "solid", fgColor: { argb } });
+  const thin = { style: "thin", color: { argb: XL.line } };
+  const page = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } };
+
+  // a styled table: green header, banded rows, hairline rules; cols = [header, key|fn, format, width]
+  function writeTable(ws, r0, cols, data, { filter = false, widths = true } = {}) {
+    const hr = ws.getRow(r0); hr.height = 22;
+    cols.forEach((c, j) => { const cell = hr.getCell(j + 1); cell.value = c[0]; cell.font = { bold: true, color: { argb: XL.white } }; cell.fill = fill(XL.green);
+      cell.alignment = { vertical: "middle", horizontal: c[2] ? "right" : "left", wrapText: true }; });
+    data.forEach((d, i) => {
+      const row = ws.getRow(r0 + 1 + i);
+      cols.forEach((c, j) => {
+        let v = typeof c[1] === "function" ? c[1](d, i) : d[c[1]];
+        if (v === null || v === undefined || (typeof v === "number" && !Number.isFinite(v))) v = "";
+        const cell = row.getCell(j + 1); cell.value = v;
+        if (c[2] && typeof v === "number") cell.numFmt = FMT[c[2]];
+        cell.border = { bottom: thin }; if (i % 2) cell.fill = fill(XL.band);
+        cell.alignment = { vertical: "top", horizontal: c[2] ? "right" : "left", wrapText: typeof v === "string" && v.length > (c[3] || 12) };
+      });
+    });
+    if (widths) cols.forEach((c, j) => { const col = ws.getColumn(j + 1); col.width = Math.max(col.width || 8, c[3] || 12); });
+    if (filter && data.length) ws.autoFilter = { from: { row: r0, column: 1 }, to: { row: r0 + data.length, column: cols.length } };
+    return r0 + 1 + data.length;
+  }
+  function dataSheet(name, title, desc, cols, data, tab) {
+    const ws = wb.addWorksheet(name, { views: [{ state: "frozen", ySplit: 3, showGridLines: false }], properties: { tabColor: { argb: tab || XL.green } }, pageSetup: page });
+    ws.getCell(1, 1).value = title; ws.getCell(1, 1).font = { bold: true, size: 14, color: { argb: XL.green } };
+    ws.getCell(2, 1).value = desc; ws.getCell(2, 1).font = { italic: true, size: 10, color: { argb: XL.muted } };
+    writeTable(ws, 3, cols, data, { filter: true });
+    return ws;
+  }
+  const section = (ws, r, text) => { ws.mergeCells(r, 1, r, 12); const c = ws.getCell(r, 1); c.value = text; c.font = { bold: true, size: 12, color: { argb: XL.green } }; c.border = { bottom: { style: "medium", color: { argb: XL.green } } }; ws.getRow(r).height = 20; };
+  const block = (ws, r, c1, c2, value, font, opts = {}) => {
+    ws.mergeCells(r, c1, r, c2); const c = ws.getCell(r, c1); c.value = value; c.font = font;
+    c.alignment = { vertical: "middle", wrapText: true, indent: opts.indent ?? 1, horizontal: opts.align || "left" };
+    if (opts.fill) for (let k = c1; k <= c2; k++) ws.getCell(r, k).fill = fill(opts.fill);
+    if (opts.numFmt) c.numFmt = opts.numFmt;
+    if (opts.h) ws.getRow(r).height = opts.h;
+    return c;
+  };
+  const lines = (text, chars) => Math.max(1, Math.ceil(String(text).length / chars));
+
+  // ===== Dashboard =====
+  const ws = wb.addWorksheet("Dashboard", { views: [{ showGridLines: false }], properties: { tabColor: { argb: XL.green } },
+    pageSetup: { ...page, orientation: "portrait" } });
+  for (let c = 1; c <= 12; c++) ws.getColumn(c).width = 11.5;
+  block(ws, 1, 1, 12, "Seller Growth Engine  ·  Weekly ads report", { bold: true, size: 16, color: { argb: XL.white } }, { fill: XL.green, h: 34 });
+  block(ws, 2, 1, 12, `Week of ${cur.week}${cur.period ? `  ·  report ${cur.period.start} to ${cur.period.end}` : ""}  ·  ${cur.source}${cur.sample && !/sample/i.test(cur.source) ? " (SAMPLE)" : ""}  ·  generated ${new Date().toLocaleString("en-IN")}`,
+    { italic: true, size: 10, color: { argb: cur.sample ? "FFB54708" : XL.muted } }, { fill: XL.tint, h: 20 });
+
+  // decision
+  let r = 4;
+  section(ws, r++, "This week's decision");
+  const cc = CALL_ARGB[D.call], ct = CALL_TINT[D.call];
+  block(ws, r, 1, 12, callLabel(D), { bold: true, size: 15, color: { argb: cc } }, { fill: ct, h: 28 });
+  ws.getCell(r, 1).border = { left: { style: "thick", color: { argb: cc } } }; r++;
+  block(ws, r, 1, 12, D.why, { size: 11, color: { argb: XL.ink } }, { fill: ct, h: 16 * lines(D.why, 120) + 6 });
+  ws.getCell(r, 1).border = { left: { style: "thick", color: { argb: cc } } }; r++;
+  const scored = all.some(x => !x.sample) ? all.filter(x => !x.sample) : all;
+  const wno = Math.round((Date.parse(cur.week) - Date.parse(scored[0].week)) / (7 * DAY)) + 1;
+  const V = verdict(wno, S.weeklyUnits, S.baseline, S.tacos), vc = { PASS: "FF1F7A5C", ITERATE: "FFB54708", FAIL: "FFB42318" }[V.code] || XL.muted;
+  block(ws, r, 1, 12, V.text, { bold: true, size: 11, color: { argb: vc } }, { fill: ct, h: 16 * lines(V.text, 120) + 6 });
+  ws.getCell(r, 1).border = { left: { style: "thick", color: { argb: cc } } }; r += 2;
+
+  // KPI tiles: 2 rows of 4
+  section(ws, r++, "Key numbers");
+  const tiles = [
+    ["Ad spend / week", S.spendWk, FMT.inr, D.budget ? `budget ₹${D.budget}/day` : ""],
+    ["ACOS", S.acos, FMT.pct, `target ${st.targetAcos}% · break-even ${pctOr(S.breakEven)}`],
+    ["Units / week", S.weeklyUnits, FMT.n1, S.baseline ? `${signPct(S.weeklyUnits / S.baseline - 1)} vs baseline ${S.baseline}` : ""],
+    ["Profit after ads / week", S.profitAfterAdsWk, FMT.inr, "units × profit − ad spend"],
+    ["TACoS", S.tacos, FMT.pct, "pass needs ≤ 25%"],
+    ["Organic units / week", S.organicWk, FMT.n1, S.weeklyUnits ? `${pct(S.organicWk / S.weeklyUnits)} of all units` : ""],
+    ["Ad sales", S.sales, FMT.inr, `${S.days}-day report`],
+    ["Changes to make", cur.actions.length, FMT.n0, "see the Actions sheet"],
+  ];
+  tiles.forEach((t, i) => {
+    const row = r + Math.floor(i / 4) * 4, col = 1 + (i % 4) * 3;
+    block(ws, row, col, col + 2, t[0], { size: 9, color: { argb: XL.muted } }, { fill: XL.tile, h: 16 });
+    block(ws, row + 1, col, col + 2, t[1] ?? "", { bold: true, size: 18, color: { argb: XL.ink } }, { fill: XL.tile, h: 28, numFmt: t[2] });
+    block(ws, row + 2, col, col + 2, t[3], { size: 9, color: { argb: XL.muted } }, { fill: XL.tile, h: 16 });
+    for (let k = col; k <= col + 2; k++) for (let q = row; q <= row + 2; q++) ws.getCell(q, k).border = { left: k === col ? { style: "thin", color: { argb: XL.white } } : undefined, right: k === col + 2 ? { style: "medium", color: { argb: XL.white } } : undefined };
+  });
+  r += 8;
+
+  // priorities
+  section(ws, r++, "Priorities this week");
+  if (!D.items.length) block(ws, r++, 1, 12, "No changes needed this week.", { italic: true, color: { argb: XL.muted } });
+  D.items.forEach((it, i) => {
+    block(ws, r, 1, 2, `${i + 1}  ${it.area.toUpperCase()}`, { bold: true, size: 9, color: { argb: XL.green } }, { h: 18 });
+    block(ws, r, 3, 8, it.title, { bold: true, size: 11, color: { argb: XL.ink } });
+    block(ws, r, 9, 12, it.impact, { bold: true, size: 10, color: { argb: XL.green } }, { align: "right" });
+    r++;
+    block(ws, r, 3, 12, it.detail, { size: 9, color: { argb: XL.muted } }, { h: 15 * lines(it.detail, 95) + 2 });
+    for (let k = 1; k <= 12; k++) ws.getCell(r, k).border = { bottom: thin };
+    r++;
+  });
+  r++;
+
+  // charts
+  if (imgs.units || imgs.profit || imgs.mix) section(ws, r++, "Trends");
+  const place = (img, col, width) => {
+    const h = Math.round(width * img.h / img.w), id = wb.addImage({ base64: img.base64, extension: "png" });
+    ws.addImage(id, { tl: { col, row: r - 1 + 0.3 }, ext: { width, height: h } });
+    return Math.ceil(h / 20) + 1;
+  };
+  if (imgs.units) r += place(imgs.units, 0, 900);
+  if (imgs.profit || imgs.mix) r += Math.max(imgs.profit ? place(imgs.profit, 0, 440) : 0, imgs.mix ? place(imgs.mix, 6, 440) : 0);
+  r++;
+
+  // findings
+  section(ws, r++, "What the data says");
+  A.findings.forEach(f => { block(ws, r, 1, 12, "•  " + f, { size: 10, color: { argb: XL.ink } }, { h: 15 * lines(f, 125) + 4 }); r++; });
+  if (lastBrief && lastBrief.week === cur.week) {
+    r++; section(ws, r++, `AI brief · written by ${lastBrief.model} from the numbers above`);
+    lastBrief.text.replace(/\*\*/g, "").split("\n").filter(l => l.trim()).forEach(l => { block(ws, r, 1, 12, l, { size: 10, color: { argb: XL.ink } }, { h: 15 * lines(l, 125) + 4 }); r++; });
+  }
+
+  // by product under findings
+  r++; section(ws, r++, "By product");
+  writeTable(ws, r, [["Product", "name"], ["Ad spend", "spend", "inr"], ["Ad sales", "sales", "inr"], ["Ad orders", "orders", "n0"],
+    ["ACOS", b => b.sales ? b.spend / b.sales : null, "pct"], ["TACoS", b => b.periodSales ? b.spend / b.periodSales : null, "pct"],
+    ["Units/wk", "weeklyUnits", "n1"], ["vs base", b => b.baseline ? b.weeklyUnits / b.baseline - 1 : null, "pct"],
+    ["Organic/wk", "organicWk", "n1"], ["Profit after ads/wk", "profitAfterAdsWk", "inr"]], cur.byProduct, { widths: false });
+
+  // ===== Actions =====
+  const wa = dataSheet("Actions", "Changes to make in the Ads console", "One row per change. Tick Done as you go. Brand searches are never blocked.",
+    [["Rule", "rule", null, 13], ["Do this", "action", null, 34], ["Value", "value", null, 24], ["Campaign", "campaign", null, 22], ["Ad group", "ad_group", null, 10],
+     ["Targeting", "targeting", null, 22], ["Search term", "search_term", null, 28], ["Clicks", "clicks", "n0", 8], ["Spend", "spend", "inr2", 10], ["Orders", "orders", "n0", 8],
+     ["ACOS", "acos", null, 8], ["Why", "why", null, 48], ["Done?", () => "", null, 8]], cur.actions);
+  cur.actions.forEach((a, i) => {
+    wa.getCell(i + 4, 1).font = { bold: true, color: { argb: RULE_ARGB[a.rule.slice(0, 2)] } };
+    wa.getCell(i + 4, 13).dataValidation = { type: "list", allowBlank: true, formulae: ['"Y,N"'] };
+  });
+
+  // ===== Search terms =====
+  const terms = aggregateTerms(cur.rows).map(t => ({ ...t, book: (cur.products[productIndexIn(cur.products, t.campaign)] || { name: "Not linked" }).name,
+    ctr: t.impr ? t.clicks / t.impr : null, cpc: t.clicks ? t.spend / t.clicks : null, cvr: t.clicks ? t.orders / t.clicks : null,
+    acos: t.sales ? t.spend / t.sales : null, group: A.termCluster[t.term] || "" })).sort((a, b) => b.spend - a.spend);
+  const wt = dataSheet("Search terms", "Search terms this week", "Sorted by spend. ACOS is coloured green (under target) to red (well above). ML group = k-means cluster.",
+    [["Search term", "term", null, 32], ["Product", "book", null, 22], ["Campaign", "campaign", null, 22], ["Impr.", "impr", "n0", 9], ["Clicks", "clicks", "n0", 8],
+     ["CTR", "ctr", "pct", 7], ["Spend", "spend", "inr2", 10], ["CPC", "cpc", "inr2", 8], ["Orders", "orders", "n0", 8], ["Sales", "sales", "inr", 10],
+     ["Conv.", "cvr", "pct", 7], ["ACOS", "acos", "pct", 8], ["ML group", "group", null, 22]], terms, "FF2A78D6");
+  if (terms.length) wt.addConditionalFormatting({ ref: `L4:L${3 + terms.length}`, rules: [{ type: "colorScale", priority: 1,
+    cfvo: [{ type: "num", value: 0 }, { type: "num", value: st.targetAcos / 100 }, { type: "num", value: Math.max(0.6, st.targetAcos / 50) }],
+    color: [{ argb: "FF63BE7B" }, { argb: "FFFFEB84" }, { argb: "FFF8696B" }] }] });
+
+  // ===== Weekly history =====
+  const productNames = cur.products.map(b => b.name);
+  dataSheet("Weekly history", "Week by week", "Weekly equivalents. Sample weeks are left out once real weeks exist.",
+    [["Week of", "week", null, 12], ["Sample", w => w.sample ? "SAMPLE" : "", null, 9], ["Ad spend", "spend", "inr", 11], ["Ad sales", "sales", "inr", 11],
+     ["ACOS", "acos", "pct", 8], ["TACoS", "tacos", "pct", 8], ["Units", "units", "n1", 8], ["From ads", "adOrders", "n1", 9], ["Organic", "organic", "n1", 9],
+     ["Baseline", "baseline", "n1", 9], ["vs base", w => w.baseline ? w.units / w.baseline - 1 : null, "pct", 9], ["Profit after ads", "profit", "inr", 15],
+     ...productNames.map(n => [`${n.split(" ")[0]} units`, w => w.products[n] ?? null, "n1", 14])], A.weekly, "FF1BAF7A");
+
+  // ===== Forecast & ML =====
+  const w4 = wb.addWorksheet("Forecast & ML", { views: [{ showGridLines: false }], properties: { tabColor: { argb: "FF6941C6" } }, pageSetup: page });
+  w4.getCell(1, 1).value = "Forecasts and machine-learning results"; w4.getCell(1, 1).font = { bold: true, size: 14, color: { argb: XL.green } };
+  w4.getCell(2, 1).value = "Methods are explained in the manual, section 5."; w4.getCell(2, 1).font = { italic: true, size: 10, color: { argb: XL.muted } };
+  const sub = (r0, text) => { const c = w4.getCell(r0, 1); c.value = text; c.font = { bold: true, size: 12, color: { argb: XL.green } }; return r0 + 1; };
+  let q = sub(4, "Week-8 forecast · linear regression with 80% range");
+  q = writeTable(w4, q, [["Series", "name", null, 30], ["Weeks", "weeks", "n0", 9], ["Change / week", "slope", "n2", 13], ["Fit R²", "r2", "n2", 10],
+    ["Forecast", "projected", "n1", 11], ["Low", "low", "n1", 9], ["High", "high", "n1", 9], ["Pass line", t => t.baseline ? 1.5 * t.baseline : null, "n1", 10], ["Outlook", "outlook", null, 20]], A.trends);
+  const L = A.spendLink;
+  const method = { controlled: "Regression of units on ad spend and week (trend held fixed), 95% test", confounded: "Spend and time rose together: can't be separated",
+    simple: "Simple regression (needs 6+ weeks to hold the trend fixed)", flat: "Spend barely changed: can't be measured" };
+  q = sub(q + 1, "Does ad spend add sales?");
+  q = writeTable(w4, q, [["Measure", "k"], ["Value", "v"], ["Meaning", "n"]], L ? [
+    { k: "Method", v: method[L.method], n: "" },
+    { k: "Extra units / week per ₹1,000 / week", v: L.method === "flat" ? "—" : +L.per1000.toFixed(2), n: L.se !== undefined ? `± ${L.se.toFixed(2)} standard error` : L.r2 !== undefined ? `R² ${L.r2.toFixed(2)}` : "" },
+    { k: "Clear effect?", v: L.clear ? "Yes" : "Not yet", n: "Estimate must be clearly away from zero (95%)" },
+    { k: "Ad cost per extra unit", v: L.costPerExtraUnit ? Math.round(L.costPerExtraUnit) : "—", n: `vs ₹${Math.round(L.profit)} profit per unit` },
+  ] : [{ k: "Needs 4+ weeks of history", v: "", n: "" }]);
+  q = sub(q + 1, `Search-term groups · k-means${A.clusterQuality ? ` (k = ${A.clusterQuality.k}, silhouette ${A.clusterQuality.silhouette.toFixed(2)})` : ""}`);
+  q = writeTable(w4, q, [["Group", "label"], ["Terms", "n", "n0"], ["Clicks", "clicks", "n0"], ["Spend", "spend", "inr"], ["Orders", "orders", "n0"],
+    ["Conv.", "cvr", "pct"], ["ACOS", "acos", "pct"], ["Examples", c => c.examples.join("; ")], ["What to do", "advice", null, 50]],
+    A.clusters.length ? A.clusters : [{ label: "Needs 6+ search terms with 3+ clicks", n: "", clicks: "", spend: "", orders: "", cvr: "", acos: "", examples: [], advice: "" }]);
+  const show = (v, u) => !Number.isFinite(v) ? "" : u === "%" ? pct(v) : Math.round(v * 10) / 10;
+  q = sub(q + 1, "Alerts · latest week outside the 95% range of the trend");
+  writeTable(w4, q, [["Metric", "metric"], ["Latest", a => show(a.value, a.unit)], ["Expected", a => show(a.usual, a.unit)], ["Check", "hint", null, 50]],
+    A.anomalies.length ? A.anomalies : [{ metric: A.n >= 5 ? "Nothing unusual" : "Needs 5+ weeks", value: NaN, usual: NaN, unit: "", hint: "" }]);
+
+  // ===== Term patterns =====
+  dataSheet("Term patterns", "Search terms across weeks", "Slow bleeders, rising, fading and consistent winners, with what to do.",
+    [["Pattern", "type", null, 18], ["Search term", "term", null, 30], ["Product", "book", null, 22], ["Weeks", "weeks", "n0", 8], ["Clicks", "clicks", "n0", 8],
+     ["Spend", "spend", "inr", 10], ["Spend/wk", "spendPerWeek", "inr", 10], ["Orders", "orders", "n1", 8], ["ACOS", "acos", "pct", 8], ["What to do", "advice", null, 60]],
+    A.terms, "FFEB6834");
+
+  // ===== Inputs =====
+  const wi = dataSheet("Inputs", "Inputs used this week", "Product economics and rule settings at the time of this run.",
+    [["Product", "name", null, 28], ["Campaign word", "match", null, 14], ["ASIN", "asin", null, 13], ["Price", "price", "inr", 9], ["Cost/unit", "cogs", "inr", 10],
+     ["Referral", "referral", "inr", 9], ["FBA", "fba", "inr", 8], ["Baseline/wk", "baseline", "n1", 11], ["Units in period", "periodUnits", "n0", 13],
+     ["Sales in period", "periodSales", "inr", 13], ["Profit/unit", b => profitOf(b), "inr", 11], ["Break-even ACOS", b => b.price ? profitOf(b) / b.price : null, "pct", 14]],
+    cur.products, "FF5F6B66");
+  writeTable(wi, cur.products.length + 6, [["Setting", "k"], ["Value", "v"]], SETTINGS.map(f => ({ k: f.label, v: cur.settings[f.id] ?? "" })), { widths: false });
+
+  const buf = await wb.xlsx.writeBuffer();
+  download(`Seller_Growth_Engine_${cur.week}.xlsx`, new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+}
+document.querySelectorAll(".xlsBtn").forEach(b => b.onclick = async () => {
+  b.disabled = true; const t = b.textContent; b.textContent = "Building…";
+  try { await buildExcel(); } catch (e) { alert(e.message); }
+  b.disabled = false; b.textContent = t;
+});
+
+(async () => {
+  renderProducts(); renderSettings(); renderDerived(); renderGrid();
+  await DB.init(); await reloadRuns();
+  renderHist(); renderInsights();
+})();
+</script>
+</body>
+</html>
